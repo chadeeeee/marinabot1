@@ -1,0 +1,15 @@
+2025-08-30 19:58:43,249 - INFO - Рабочая директория: D:\Code\marinabot\userbot0932133127
+2025-08-30 19:58:43,249 - INFO - Файл с Usernames: D:\Code\marinabot\userbot0932133127\all_usernames.txt
+2025-08-30 19:58:43,250 - INFO - Файл данных сообщения: D:\Code\marinabot\userbot0932133127\message_data.json
+2025-08-30 19:58:43,250 - INFO - Файл общей статистики: D:\Code\marinabot\userbot0932133127\stats.txt
+2025-08-30 19:58:43,250 - INFO - Файл дневной статистики: D:\Code\marinabot\userbot0932133127\daily_stats.json
+2025-08-30 19:58:43,250 - INFO - Файл-флаг: D:\Code\marinabot\userbot0932133127\flag.txt
+2025-08-30 19:58:43,250 - INFO - Файл чатов: D:\Code\marinabot\userbot0932133127\chats.txt
+2025-08-30 19:58:43,251 - INFO - Connecting to 149.154.167.51:443/TcpFull...
+2025-08-30 19:58:46,411 - INFO - Connection to 149.154.167.51:443/TcpFull complete!
+2025-08-30 19:59:00,186 - INFO - Клієнт успішно підключено, запускаємо основні задачі...
+2025-08-30 19:59:00,186 - INFO - Задача мониторинга файла-флага і рассилки запущена.
+2025-08-30 19:59:00,186 - INFO - Поточний статус флага: IDLE
+2025-08-30 19:59:00,187 - INFO - Невідомий статус флага: IDLE, чекаємо...
+2025-08-30 19:59:06,843 - INFO - Disconnecting from 149.154.167.51:443/TcpFull...
+2025-08-30 19:59:06,844 - INFO - Disconnection from 149.154.167.51:443/TcpFull complete!
