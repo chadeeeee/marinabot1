@@ -2,13 +2,12 @@ import subprocess
 import os
 
 BASE = os.path.dirname(os.path.abspath(__file__))
-ENTRY = "python3 main.py"
+# ENTRY = "python3 main.py"
+ENTRY = 'bash -c "echo HELLO from $(pwd); sleep 9999"'
 
-# список усіх ботів
 BOTS = ["bot"] + [f"bot{i}" for i in range(1, 12)]
 
 def tmux_has(session):
-    """Перевіряє чи існує сесія"""
     return subprocess.run(
         ["tmux", "has-session", "-t", session],
         stdout=subprocess.DEVNULL,
@@ -16,7 +15,6 @@ def tmux_has(session):
     ).returncode == 0
 
 def tmux_start(session, cmd, cwd):
-    """Стартує нову сесію tmux"""
     if not tmux_has(session):
         print(f"[INFO] Створюю сесію: {session}")
         subprocess.run([
