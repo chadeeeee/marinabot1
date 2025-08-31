@@ -8,13 +8,8 @@ import pytz
 BASE = os.path.dirname(os.path.abspath(__file__))
 ENTRY = "python3 main.py"   # що запускати у кожному боті
 
-# головний бот (завжди активний)
 MAIN_BOT = os.path.join(BASE, "bot")
-
-# інші (bot1..bot11)
 OTHER_BOTS = [os.path.join(BASE, f"bot{i}") for i in range(1, 12)]
-
-# Часовий пояс
 TZ = pytz.timezone("Europe/Kyiv")
 
 def tmux_has(session):
@@ -26,13 +21,17 @@ def tmux_has(session):
 
 def tmux_start(session, cmd, cwd):
     if not tmux_has(session):
+        print(f"[INFO] Стартую {session}")
         subprocess.run([
             "tmux", "new-session", "-d", "-s", session,
             f"cd {cwd} && {cmd}"
         ])
+    else:
+        print(f"[INFO] {session} вже працює")
 
 def tmux_kill(session):
     if tmux_has(session):
+        print(f"[INFO] Зупиняю {session}")
         subprocess.run(["tmux", "kill-session", "-t", session])
 
 def sanitize(path):
@@ -42,22 +41,20 @@ def manage_bots():
     now = datetime.now(TZ)
     hour = now.hour
 
-    # головний бот завжди вмикаємо
+    # головний бот завжди активний
     tmux_start("bot", ENTRY, MAIN_BOT)
 
     if 9 <= hour < 19:
-        # робочі години → включаємо bot1..bot11
         for path in OTHER_BOTS:
             tmux_start(sanitize(path), ENTRY, path)
     else:
-        # поза робочими → вимикаємо bot1..bot11
         for path in OTHER_BOTS:
             tmux_kill(sanitize(path))
 
 def main():
     while True:
         manage_bots()
-        time.sleep(60)  # перевірка щохвилини
+        time.sleep(60)  # перевіряти щохвилини
 
 if __name__ == "__main__":
     main()
