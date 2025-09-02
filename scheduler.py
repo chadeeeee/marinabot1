@@ -17,19 +17,30 @@ print(f"Сьогодні працює група {group_num} + постійні 
 
 # функція для створення контейнера, якщо його ще немає
 def ensure_container(bot_name):
-    # перевірка, чи існує контейнер
     result = subprocess.run(
         ["docker", "ps", "-a", "--format", "{{.Names}}"],
         capture_output=True, text=True
     )
     existing = result.stdout.splitlines()
+    
     if bot_name not in existing:
-        # створюємо контейнер із Dockerfile у відповідній папці
         path = os.path.join(os.getcwd(), bot_name)
         print(f"Створюю контейнер {bot_name}...")
         subprocess.run(["docker", "build", "-t", bot_name, path])
+        # створюємо і запускаємо контейнер відразу
+        subprocess.run(["docker", "run", "-d", "--name", bot_name, bot_name])
     else:
-        print(f"Контейнер {bot_name} вже існує.")
+        # перевіримо, чи контейнер запущений
+        running = subprocess.run(
+            ["docker", "ps", "--format", "{{.Names}}"],
+            capture_output=True, text=True
+        ).stdout.splitlines()
+        if bot_name not in running:
+            print(f"Запускаю контейнер {bot_name}...")
+            subprocess.run(["docker", "start", bot_name])
+        else:
+            print(f"Контейнер {bot_name} вже працює.")
+
 
 # запускаємо постійні
 for bot in groups["always"]:
