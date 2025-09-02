@@ -1,0 +1,7 @@
+{
+  "always": ["always_bot"],
+  "1": ["bot1", "bot2", "bot3"],
+  "2": ["bot4", "bot5", "bot6"],
+  "3": ["bot7", "bot8"],
+  "4": ["bot9", "bot10"]
+}
