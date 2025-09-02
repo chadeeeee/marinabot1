@@ -1,7 +1,7 @@
 {
-  "always": ["bot"],
-  "1": ["bot1", "bot2", "bot3"],
-  "2": ["bot4", "bot5", "bot6"],
-  "3": ["bot7", "bot8"],
-  "4": ["bot9", "bot10"]
+  "always": ["crypto_always"],
+  "1": ["mybot_1", "mybot_2", "telegram_bot3"],
+  "2": ["mybot_4", "mybot_5", "mybot_6"],
+  "3": ["mybot_7", "mybot_8"],
+  "4": ["mybot_9", "mybot_10"]
 }
