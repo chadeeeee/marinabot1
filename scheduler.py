@@ -6,8 +6,10 @@ import os
 # завантажуємо групи
 with open("groups.json", "r") as f:
     groups = json.load(f)
+    
 
-# сьогоднішній день
+
+# сьогоднішній день  
 day = datetime.now().timetuple().tm_yday
 group_num = ((day - 1) % 4) + 1
 
