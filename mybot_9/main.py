@@ -288,45 +288,51 @@ async def main_bot_command_handler(event):
 
 
 async def process_mailing(target_type, filename):
-	if not os.path.exists(filename):
-		logger.error(f"Файл {filename} не найден")
-		await client.send_message(BOT_ID, f"Ошибка: файл {filename} не найден")
-		return
-	with open(filename, "r", encoding="utf-8") as f:
-		targets = [line.strip() for line in f if line.strip()]
-	if not targets:
-		logger.error(f"Файл {filename} пустой")
-		await client.send_message(BOT_ID, f"Ошибка: файл {filename} пустой")
-		return
-	await client.send_message(BOT_ID, f"Начинается рассылка по {len(targets)} {'юзернеймам' if target_type=='usernames' else 'номерам'}")
-	sent_count = 0
-	failed_count = 0
-	for target in targets:
-		if read_flag() == FLAG_STOP:
-			await client.send_message(BOT_ID, "Рассылка остановлена пользователем")
-			return
-		try:
-			message_data = read_message_data()
-			if not message_data:
-				await client.send_message(BOT_ID, "Ошибка: не удалось получить данные сообщения")
-				return
-			msg_type = message_data.get("type")
-			content = message_data.get("content")
-			caption = message_data.get("caption")
-			if target_type == "usernames":
-				success, error = await send_message_to_username(client, target, msg_type, content, caption)
-			else:
-				success, error = await send_message_to_phone(client, target, msg_type, content, caption)
-			if success:
-				sent_count += 1
-			else:
-				failed_count += 1
-				logger.error(f"Ошибка при отправке к {target}: {error}")
-			await asyncio.sleep(random.uniform(MIN_DELAY_SECONDS, MAX_DELAY_SECONDS))
-		except Exception as e:
-			logger.error(f"Ошибка при отправке к {target}: {e}")
-			failed_count += 1
-	await client.send_message(BOT_ID, f"Рассылка завершена\nУспешно: {sent_count}\nОшибок: {failed_count}")
+    if not os.path.exists(filename):
+        logger.error(f"Файл {filename} не найден")
+        await client.send_message(BOT_ID, f"Ошибка: файл {filename} не найден")
+        return
+    with open(filename, "r", encoding="utf-8") as f:
+        targets = [line.strip() for line in f if line.strip()]
+    if not targets:
+        logger.error(f"Файл {filename} пустой")
+        await client.send_message(BOT_ID, f"Ошибка: файл {filename} пустой")
+        return
+    await client.send_message(BOT_ID, f"Начинается рассылка по {len(targets)} {'юзернеймам' if target_type=='usernames' else 'номерам'}")
+    sent_count = 0
+    failed_count = 0
+    for target in targets:
+        # Проверка достижения лимита в 50 сообщений
+        if sent_count >= 50:
+            logger.info("Достигнут лимит в 50 сообщений. Рассылка завершена.")
+            await client.send_message(BOT_ID, "Достигнут лимит в 50 сообщений. Рассылка завершена.")
+            break
+            
+        if read_flag() == FLAG_STOP:
+            await client.send_message(BOT_ID, "Рассылка остановлена пользователем")
+            return
+        try:
+            message_data = read_message_data()
+            if not message_data:
+                await client.send_message(BOT_ID, "Ошибка: не удалось получить данные сообщения")
+                return
+            msg_type = message_data.get("type")
+            content = message_data.get("content")
+            caption = message_data.get("caption")
+            if target_type == "usernames":
+                success, error = await send_message_to_username(client, target, msg_type, content, caption)
+            else:
+                success, error = await send_message_to_phone(client, target, msg_type, content, caption)
+            if success:
+                sent_count += 1
+            else:
+                failed_count += 1
+                logger.error(f"Ошибка при отправке к {target}: {error}")
+            await asyncio.sleep(random.uniform(MIN_DELAY_SECONDS, MAX_DELAY_SECONDS))
+        except Exception as e:
+            logger.error(f"Ошибка при отправке к {target}: {e}")
+            failed_count += 1
+    await client.send_message(BOT_ID, f"Рассылка завершена\nУспешно: {sent_count}\nОшибок: {failed_count}")
 
 def read_flag():
 	try:
