@@ -1,20 +1,24 @@
-import json
 import subprocess
-import os
 
-with open("/root/mail_bot/marinabot1/groups.json", "r") as f:
-    groups = json.load(f)
-
-def stop_container(bot_name):
-    running = subprocess.run(
-        ["docker", "ps", "--format", "{{.Names}}"],
+def stop_and_remove_all_containers():
+    # Отримати список усіх контейнерів (запущених і зупинених)
+    result = subprocess.run(
+        ["docker", "ps", "-aq"],
         capture_output=True, text=True
-    ).stdout.splitlines()
-    if bot_name in running:
-        subprocess.run(["docker", "stop", bot_name], check=True)
-        print(f"Зупинено контейнер {bot_name}")
+    )
+    container_ids = result.stdout.splitlines()
 
-# зупиняємо всі контейнери
-for bots in groups.values():
-    for bot in bots:
-        stop_container(bot)
+    if not container_ids:
+        print("Немає контейнерів для зупинки/видалення.")
+        return
+
+    # Зупинити всі
+    subprocess.run(["docker", "stop"] + container_ids, check=False)
+    print("Зупинено всі контейнери.")
+
+    # Видалити всі
+    subprocess.run(["docker", "rm"] + container_ids, check=False)
+    print("Видалено всі контейнери.")
+
+if __name__ == "__main__":
+    stop_and_remove_all_containers()
