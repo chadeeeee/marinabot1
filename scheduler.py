@@ -7,6 +7,12 @@ import os
 with open("groups.json", "r") as f:
     groups = json.load(f)
     
+BASE_IMAGE = "bot_base_image"
+
+# Build базовий образ один раз
+if not subprocess.run(["docker", "images", "-q", BASE_IMAGE], capture_output=True, text=True).stdout.strip():
+    print("Будуємо базовий образ...")
+    subprocess.run(["docker", "build", "-t", BASE_IMAGE, "."])
 
 
 # сьогоднішній день  
@@ -17,20 +23,15 @@ print(f"Сьогодні працює група {group_num} + постійні 
 
 # функція для створення контейнера, якщо його ще немає
 def ensure_container(bot_name):
-    result = subprocess.run(
+    existing = subprocess.run(
         ["docker", "ps", "-a", "--format", "{{.Names}}"],
         capture_output=True, text=True
-    )
-    existing = result.stdout.splitlines()
+    ).stdout.splitlines()
     
     if bot_name not in existing:
-        path = os.path.join(os.getcwd(), bot_name)
         print(f"Створюю контейнер {bot_name}...")
-        subprocess.run(["docker", "build", "-t", bot_name, path])
-        # створюємо і запускаємо контейнер відразу
-        subprocess.run(["docker", "run", "-d", "--name", bot_name, bot_name])
+        subprocess.run(["docker", "run", "-d", "--name", bot_name, BASE_IMAGE])
     else:
-        # перевіримо, чи контейнер запущений
         running = subprocess.run(
             ["docker", "ps", "--format", "{{.Names}}"],
             capture_output=True, text=True
