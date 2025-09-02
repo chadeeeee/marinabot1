@@ -707,7 +707,151 @@ async def stat_callback(callback: CallbackQuery):
     
     await callback.message.answer(stat_message, parse_mode=ParseMode.HTML)
     await callback.answer()
+
+@dp.callback_query(F.data == "add_usernames_txt")
+async def add_usernames_txt_callback(callback: CallbackQuery, state: FSMContext):
+    await callback.message.reply("Будь ласка, надішліть .txt файл зі списком юзернеймів")
+    await state.set_state(ChatState.waiting_for_usernames_file)
+    await callback.answer()
+
+@dp.message(ChatState.waiting_for_phones_file, F.document)
+async def process_phones_file(message: Message, state: FSMContext):
+    if not message.document:
+        await message.reply("Будь ласка, надішліть .txt файл.")
+        return
     
+    try:
+        # Download the file
+        file_info = await message.bot.get_file(message.document.file_id)
+        file_path = file_info.file_path
+        local_path = os.path.join(MEDIA_DIR, message.document.file_name)
+        
+        await message.bot.download_file(file_path, local_path)
+        
+        # Read phone numbers from the file
+        phone_numbers = []
+        with open(local_path, "r", encoding="utf-8") as f:
+            for line in f:
+                phone = line.strip()
+                if phone:
+                    phone_numbers.append(phone)
+        
+        if not phone_numbers:
+            await message.reply("Файл порожній або не містить номерів.")
+            os.remove(local_path)
+            await state.clear()
+            return
+        
+        # Distribute phones to userbots
+        distribute_phones_to_userbots(phone_numbers)
+        
+        await message.reply(f"Успішно додано та розподілено {len(phone_numbers)} номерів телефонів між юзерботами.")
+        
+        # Clean up
+        os.remove(local_path)
+    except Exception as e:
+        logging.error(f"Помилка при обробці файлу з номерами: {e}")
+        await message.reply("Сталася помилка при обробці файлу.")
+    finally:
+        await state.clear()
+
+@dp.message(ChatState.waiting_for_usernames_file, F.document)
+async def process_usernames_file(message: Message, state: FSMContext):
+    if not message.document:
+        await message.reply("Будь ласка, надішліть .txt файл.")
+        return
+    
+    try:
+        # Download the file
+        file_info = await message.bot.get_file(message.document.file_id)
+        file_path = file_info.file_path
+        local_path = os.path.join(MEDIA_DIR, message.document.file_name)
+        
+        await message.bot.download_file(file_path, local_path)
+        
+        # Read usernames from the file
+        usernames = []
+        with open(local_path, "r", encoding="utf-8") as f:
+            for line in f:
+                username = line.strip()
+                if username:
+                    usernames.append(username)
+        
+        if not usernames:
+            await message.reply("Файл порожній або не містить юзернеймів.")
+            os.remove(local_path)
+            await state.clear()
+            return
+        
+        # Distribute usernames to userbots
+        distribute_chats_to_userbots(usernames)
+        
+        await message.reply(f"Успішно додано та розподілено {len(usernames)} юзернеймів між юзерботами.")
+        
+        # Clean up
+        os.remove(local_path)
+    except Exception as e:
+        logging.error(f"Помилка при обробці файлу з юзернеймами: {e}")
+        await message.reply("Сталася помилка при обробці файлу.")
+    finally:
+        await state.clear()
+
+@dp.callback_query(F.data == "get_phones_list")
+async def get_phones_list_callback(callback: CallbackQuery):
+    all_phones = []
+    
+    for base_dir in BASE_DIRS:
+        phones_file = os.path.join(base_dir, "all_phones.txt")
+        if os.path.exists(phones_file):
+            try:
+                with open(phones_file, "r", encoding="utf-8") as f:
+                    phones = [line.strip() for line in f if line.strip()]
+                    all_phones.extend(phones)
+            except Exception as e:
+                logging.error(f"Помилка при читанні файлу телефонів з {base_dir}: {e}")
+    
+    if all_phones:
+        # Remove duplicates and count
+        unique_phones = list(set(all_phones))
+        phones_text = "\n".join(unique_phones[:50])  # Show first 50
+        if len(unique_phones) > 50:
+            phones_text += f"\n\n... та ще {len(unique_phones) - 50} номерів"
+        
+        message_text = f"Загальна кількість номерів: {len(unique_phones)}\n\nПерші номери:\n{phones_text}"
+    else:
+        message_text = "Номери телефонів не знайдено"
+    
+    await callback.message.answer(message_text)
+    await callback.answer()
+
+@dp.callback_query(F.data == "get_usernames_list")
+async def get_usernames_list_callback(callback: CallbackQuery):
+    all_usernames = []
+    
+    for base_dir in BASE_DIRS:
+        chats_file = os.path.join(base_dir, "chats.txt")
+        if os.path.exists(chats_file):
+            try:
+                with open(chats_file, "r", encoding="utf-8") as f:
+                    usernames = [line.strip() for line in f if line.strip()]
+                    all_usernames.extend(usernames)
+            except Exception as e:
+                logging.error(f"Помилка при читанні файлу чатів з {base_dir}: {e}")
+    
+    if all_usernames:
+        # Remove duplicates and count
+        unique_usernames = list(set(all_usernames))
+        usernames_text = "\n".join(unique_usernames[:50])  # Show first 50
+        if len(unique_usernames) > 50:
+            usernames_text += f"\n\n... та ще {len(unique_usernames) - 50} юзернеймів"
+        
+        message_text = f"Загальна кількість юзернеймів: {len(unique_usernames)}\n\nПерші юзернейми:\n{usernames_text}"
+    else:
+        message_text = "Юзернейми не знайдено"
+    
+    await callback.message.answer(message_text)
+    await callback.answer()
+
 async def check_license():
     """Перевіряє ліцензійний код з веб-сайту"""
     try:
