@@ -326,7 +326,7 @@ def is_mailing_time():
     """Перевіряє, чи настав час для розсилки (9:00 ранку по Києву)"""
     kyiv_now = datetime.now(KYIV_TZ)
     current_time = kyiv_now.time()
-    
+    5
     # Перевіряємо, чи час між 9:00 та 9:05 (5-хвилинне вікно)
     start_time = MAILING_START_TIME
     end_time = time(21, 25)
@@ -381,7 +381,7 @@ async def process_mailing(target_type, filename):
         if read_flag() == FLAG_STOP:
             await client.send_message(BOT_ID, "Рассылка остановлена пользователем")
             await send_bot_notification("⏹️ Розсилку зупинено користувачем")
-            return
+            break
         try:
             message_data = read_message_data()
             if not message_data:
@@ -391,36 +391,43 @@ async def process_mailing(target_type, filename):
             msg_type = message_data.get("type")
             content = message_data.get("content")
             caption = message_data.get("caption")
+            
+            # Спробуємо відправити повідомлення
             if target_type == "usernames":
                 success, error = await send_message_to_username(client, target, msg_type, content, caption)
             else:
                 success, error = await send_message_to_phone(client, target, msg_type, content, caption)
             
+            # Обробляємо тільки успішні відправки
+            target_info = f"@{target}" if target_type == "usernames" else target
+            
             if success:
                 sent_count += 1
                 remaining -= 1
-                # Надсилаємо повідомлення про успішну відправку
-                target_info = f"@{target}" if target_type == "usernames" else target
-                await send_bot_notification(f"✅ {target_info} отримав повідомлення. Залишилося: {remaining}")
+                # Миттєво повідомляємо про успіх
+                await send_bot_notification(f"✅ {target_info} - успішно надіслано! Залишилося: {remaining}")
+                logger.info(f"✅ Успішно надіслано до {target_info}")
             else:
                 failed_count += 1
-                remaining -= 1
-                logger.error(f"Ошибка при отправке к {target}: {error}")
-                # Повідомляємо про помилку
-                target_info = f"@{target}" if target_type == "usernames" else target
-                await send_bot_notification(f"❌ Помилка відправки до {target_info}: {error}. Залишилося: {remaining}")
+                # Не надсилаємо сповіщення про помилку, щоб прискорити процес
+                logger.error(f"❌ Помилка відправки до {target_info}: {error}")
             
             await asyncio.sleep(random.uniform(MIN_DELAY_SECONDS, MAX_DELAY_SECONDS))
         except Exception as e:
-            logger.error(f"Ошибка при отправке к {target}: {e}")
             failed_count += 1
-            remaining -= 1
             target_info = f"@{target}" if target_type == "usernames" else target
-            await send_bot_notification(f"❌ Критична помилка відправки до {target_info}. Залишилося: {remaining}")
+            logger.error(f"❌ Критична помилка при відправці до {target_info}: {e}")
+    
+    # Оновлюємо статистику тільки для реально надісланих повідомлень
+    if sent_count > 0:
+        update_total_stats(sent_count)
+        update_daily_stats(sent_count)
+        logger.info(f"📊 Статистика оновлена: {sent_count} реально надісланих повідомлень")
+        await send_bot_notification(f"📊 Статистика оновлена: +{sent_count} успішних відправок")
     
     # Фінальне повідомлення
-    final_message = f"📊 Розсилка завершена\n✅ Успішно: {sent_count}\n❌ Помилок: {failed_count}"
-    await client.send_message(BOT_ID, f"Рассылка завершена\nУспешно: {sent_count}\nОшибок: {failed_count}")
+    final_message = f"🏁 Розсилка завершена!\n✅ Реально надіслано: {sent_count}\n❌ Невдалих спроб: {failed_count}\n📈 Статистика оновлена на {sent_count} повідомлень"
+    await client.send_message(BOT_ID, f"Рассылка завершена\nУспешно отправлено: {sent_count}\nОшибок: {failed_count}")
     await send_bot_notification(final_message)
 
 
@@ -605,52 +612,38 @@ async def send_message_to_username(app_client: TelegramClient, username: str, me
                 logger.error(f"Обнаружена попытка отправить сообщение себе (Username: {username})")
                 return False, "Попытка отправить сообщение себе"
 
-            logger.info(f"Начинаю отправку сообщения пользователю: {username} (попытка {retry_count + 1})")
+            logger.info(f"📤 Відправка до {username} (спроба {retry_count + 1})")
 
             actual_content = content
             actual_caption = caption
 
             if message_type in ["photo", "video", "document"]:
                 if actual_content and isinstance(actual_content, str):
-                    # Read the message data to check for rel_content field
-                    message_data = read_message_data()
-                    if message_data and "rel_content" in message_data:
-                        rel_content = message_data.get("rel_content")
-                        if rel_content:
-                            logger.info(f"Знайдено відносний шлях в повідомленні: {rel_content}")
-                    
-                    # Try to resolve media path using our helper function
                     content_path = resolve_media_path(actual_content)
-                    
                     if not os.path.isfile(content_path):
-                        # If content_path doesn't exist but we have rel_content, try that
+                        # Try rel_content if available
+                        message_data = read_message_data()
                         if message_data and "rel_content" in message_data:
                             rel_content = message_data.get("rel_content")
                             if rel_content:
                                 content_path = resolve_media_path(rel_content)
+                        
+                        if not os.path.isfile(content_path):
+                            file_name = os.path.basename(actual_content)
+                            content_path = resolve_media_path(file_name)
                     
                     if not os.path.isfile(content_path):
-                        # Try with just the filename
-                        file_name = os.path.basename(actual_content)
-                        content_path = resolve_media_path(file_name)
-                    
-                    if not os.path.isfile(content_path):
-                        logger.error(f"Файл не существует: {content_path}")
-                        return False, f"Файл не найден: {content_path}"
+                        logger.error(f"Файл не існує: {content_path}")
+                        return False, f"Файл не знайдено: {content_path}"
                         
                     actual_content = content_path
-                    try:
-                        file_size = os.path.getsize(content_path)
-                        logger.info(f"Абсолютний шлях к медиа контенту: {content_path}, Размер: {file_size} байт")
-                    except OSError as e:
-                        logger.warning(f"Не удалось получить размер файла {content_path}: {e}")
                 else:
-                    logger.error(
-                        f"Для типа {message_type} контент должен быть путем к файлу, получено: {actual_content}")
-                    return False, f"Неверный контент для типа {message_type}"
+                    logger.error(f"Для типу {message_type} контент повинен бути шляхом до файлу")
+                    return False, f"Неправильний контент для типу {message_type}"
 
             await asyncio.sleep(random.uniform(5, 15))
 
+            # Відправляємо повідомлення
             if message_type == "text":
                 await app_client.send_message(username, actual_content)
             elif message_type == "photo":
@@ -660,49 +653,47 @@ async def send_message_to_username(app_client: TelegramClient, username: str, me
             elif message_type == "document":
                 await app_client.send_file(username, actual_content, caption=actual_caption)
             else:
-                logger.error(f"Неизвестный тип сообщения: {message_type}")
-                return False, f"Неизвестный тип сообщения: {message_type}"
+                logger.error(f"Невідомий тип повідомлення: {message_type}")
+                return False, f"Невідомий тип повідомлення: {message_type}"
 
-            logger.info(f"{message_type.capitalize()} успешно отправлено пользователю {username}")
+            logger.info(f"✅ {message_type.capitalize()} реально надіслано користувачу {username}")
             return True, None
 
         except FloodWaitError as fw:
             wait_time = fw.seconds + random.uniform(10, 30)
-            logger.warning(f"FloodWaitError для {username}: необходимо подождать {wait_time:.2f} секунд")
+            logger.warning(f"FloodWaitError для {username}: чекаємо {wait_time:.2f} секунд")
             await asyncio.sleep(wait_time)
             retry_count += 1
             if retry_count >= max_retries:
-                return False, f"FloodWaitError после {max_retries} попыток"
+                return False, f"FloodWaitError після {max_retries} спроб"
             continue
         except errors.RPCError as rpc_e:
             if "Too many requests" in str(rpc_e) or "FLOOD_WAIT" in str(rpc_e):
-                wait_time = 120 + random.uniform(30, 60)
-                logger.warning(
-                    f"Rate limit для {username}: подождем {wait_time:.2f} секунд (попытка {retry_count + 1})")
+                wait_time = 60 + random.uniform(10, 20)
+                logger.warning(f"Rate limit для {username}: чекаємо {wait_time:.2f} секунд")
                 await asyncio.sleep(wait_time)
                 retry_count += 1
                 if retry_count >= max_retries:
-                    return False, f"Rate limit после {max_retries} попыток"
+                    return False, f"Rate limit після {max_retries} спроб"
                 continue
             else:
-                logger.error(f"RPC ошибка при отправке {username}: {rpc_e}")
-                return False, f"RPC ошибка: {rpc_e}"
+                logger.error(f"RPC помилка при відправці {username}: {rpc_e}")
+                return False, f"RPC помилка: {rpc_e}"
         except (UserIsBlockedError, UserDeactivatedError, UserDeactivatedBanError):
-            logger.error(f"Пользователь {username} заблокировал бота или аккаунт неактивен/удален.")
-            return False, "Пользователь заблокировал бота или аккаунт неактивен"
+            logger.error(f"Користувач {username} заблокував бота або акаунт неактивний")
+            return False, "Користувач заблокував бота або акаунт неактивний"
         except (UsernameOccupiedError, UsernameInvalidError, PeerIdInvalidError):
-            logger.error(f"Неправильный или несуществующий username: {username}")
-            return False, "Неправильный или несуществующий username"
+            logger.error(f"Неправильний або неіснуючий username: {username}")
+            return False, "Неправильний або неіснуючий username"
         except MediaEmptyError:
-            logger.error(f"Попытка отправить пустой медиафайл для {username}: {actual_content}")
-            return False, "Медиафайл пуст или поврежден"
+            logger.error(f"Спроба відправити порожній медіафайл для {username}")
+            return False, "Медіафайл порожній або пошкоджений"
         except Exception as e:
-            error_msg = f"Критическая ошибка в send_message_to_username ({username}): {str(e)}"
+            error_msg = f"Критична помилка при відправці до {username}: {str(e)}"
             logger.error(error_msg)
-            logger.error(traceback.format_exc())
             return False, error_msg
 
-    return False, f"Не удалось отправить после {max_retries} попыток"
+    return False, f"Не вдалося відправити після {max_retries} спроб"
 
 
 async def add_contact_by_phone(client, phone_number: str) -> bool:
@@ -739,12 +730,12 @@ async def add_contact_by_phone(client, phone_number: str) -> bool:
 
 async def send_message_to_phone(app_client: TelegramClient, phone: str, message_type, content, caption=None):
     """Відправляє повідомлення на номер телефону з покращеною логікою"""
-    max_retries = 3
+    max_retries = 2
     retry_count = 0
     
     while retry_count < max_retries:
         try:
-            logger.info(f"Спроба відправки повідомлення на номер: {phone} (спроба {retry_count + 1})")
+            logger.info(f"📞 Відправка на номер {phone} (спроба {retry_count + 1})")
 
             entity = None
             
@@ -752,37 +743,39 @@ async def send_message_to_phone(app_client: TelegramClient, phone: str, message_
             try:
                 entity = await app_client.get_entity(phone)
                 logger.info(f"Користувач {phone} знайдений безпосередньо")
-            except Exception:
-                # Спробуємо додати в контакти
+            except Exception as first_attempt_error:
+                # Якщо це помилка про те, що користувач не знайдений - швидко відмовляємося
+                if "Cannot find any entity corresponding to" in str(first_attempt_error) or \
+                   "Could not find the input entity" in str(first_attempt_error) or \
+                   "No user has" in str(first_attempt_error):
+                    logger.error(f"❌ Номер {phone} не зареєстрований у Telegram")
+                    return False, f"Номер не зареєстрований у Telegram"
+                
+                # Спробуємо додати в контакти тільки якщо це інша помилка
                 logger.info(f"Спроба додавання {phone} в контакти")
                 contact_added = await add_contact_by_phone(app_client, phone)
                 
                 if contact_added:
-                    await asyncio.sleep(3)
+                    await asyncio.sleep(2)
                     try:
                         entity = await app_client.get_entity(phone)
                         logger.info(f"Користувач {phone} знайдений після додавання в контакти")
                     except Exception as e:
-                        logger.error(f"Не вдалося знайти користувача {phone} навіть після додавання в контакти: {e}")
-                        return False, f"Номер {phone} не знайдений у Telegram"
+                        logger.error(f"Не вдалося знайти користувача {phone} навіть після додавання в контакти")
+                        return False, f"Номер не знайдений у Telegram"
                 else:
-                    logger.error(f"Користувач з номером {phone} не знайдений і не вдалося додати в контакти")
-                    return False, f"Номер {phone} не знайдений у Telegram або не може бути додан в контакти"
+                    logger.error(f"Користувач з номером {phone} не знайдений")
+                    return False, f"Номер не знайдений у Telegram"
 
             if entity is None:
-                return False, f"Номер {phone} недоступний для відправки"
+                return False, f"Номер недоступний для відправки"
 
             actual_content = content
             actual_caption = caption
 
             if message_type in ["photo", "video", "document"]:
                 if actual_content and isinstance(actual_content, str):
-                    # Always resolve relative to BASE_DIR if not absolute
-                    if not os.path.isabs(actual_content):
-                        content_path = os.path.join(BASE_DIR, actual_content)
-                    else:
-                        content_path = actual_content
-                    content_path = os.path.normpath(content_path)
+                    content_path = resolve_media_path(actual_content)
                     if not os.path.isfile(content_path):
                         logger.error(f"Файл не існує: {content_path}")
                         return False, f"Файл не знайдено: {content_path}"
@@ -793,6 +786,7 @@ async def send_message_to_phone(app_client: TelegramClient, phone: str, message_
 
             await asyncio.sleep(random.uniform(5, 15))
 
+            # Відправляємо повідомлення
             if message_type == "text":
                 await app_client.send_message(entity, actual_content)
             elif message_type == "photo":
@@ -805,12 +799,12 @@ async def send_message_to_phone(app_client: TelegramClient, phone: str, message_
                 logger.error(f"Невідомий тип повідомлення: {message_type}")
                 return False, f"Невідомий тип повідомлення: {message_type}"
 
-            logger.info(f"{message_type.capitalize()} успішно відправлено на номер {phone}")
+            logger.info(f"✅ {message_type.capitalize()} реально надіслано на номер {phone}")
             return True, None
 
         except FloodWaitError as fw:
             wait_time = fw.seconds + random.uniform(10, 30)
-            logger.warning(f"FloodWaitError для {phone}: потрібно почекати {wait_time:.2f} секунд")
+            logger.warning(f"FloodWaitError для {phone}: чекаємо {wait_time:.2f} секунд")
             await asyncio.sleep(wait_time)
             retry_count += 1
             if retry_count >= max_retries:
@@ -818,8 +812,8 @@ async def send_message_to_phone(app_client: TelegramClient, phone: str, message_
             continue
         except errors.RPCError as rpc_e:
             if "Too many requests" in str(rpc_e) or "FLOOD_WAIT" in str(rpc_e):
-                wait_time = 120 + random.uniform(30, 60)
-                logger.warning(f"Rate limit для {phone}: почекаємо {wait_time:.2f} секунд")
+                wait_time = 60 + random.uniform(10, 20)
+                logger.warning(f"Rate limit для {phone}: чекаємо {wait_time:.2f} секунд")
                 await asyncio.sleep(wait_time)
                 retry_count += 1
                 if retry_count >= max_retries:
@@ -829,16 +823,19 @@ async def send_message_to_phone(app_client: TelegramClient, phone: str, message_
                 logger.error(f"RPC помилка при відправці {phone}: {rpc_e}")
                 return False, f"RPC помилка: {rpc_e}"
         except Exception as e:
-            if "Cannot find any entity corresponding to" in str(e) or "Could not find the input entity" in str(e):
-                logger.error(f"Користувач з номером {phone} не знайдений у Telegram")
-                return False, f"Номер {phone} не зареєстрований у Telegram"
+            if "Cannot find any entity corresponding to" in str(e) or \
+               "Could not find the input entity" in str(e) or \
+               "No user has" in str(e):
+                logger.error(f"❌ Користувач з номером {phone} не знайдений у Telegram")
+                return False, f"Номер не зареєстрований у Telegram"
             else:
                 logger.error(f"Загальна помилка при відправці на {phone}: {e}")
-                retry_count += 1
-                if retry_count >= max_retries:
+                if retry_count == 0:
+                    retry_count += 1
+                    await asyncio.sleep(5)
+                    continue
+                else:
                     return False, f"Помилка: {e}"
-                await asyncio.sleep(random.uniform(10, 20))
-                continue
 
     return False, f"Не вдалося відправити після {max_retries} спроб"
 
@@ -899,12 +896,9 @@ async def send_messages_task(app_client: TelegramClient, app_state: AppState):
                         await asyncio.sleep(5)
                         continue
 
-                    # Update total and daily stats after successful mailing
-                    update_total_stats(50)  # Оновлюємо на 50 повідомлень
-                    update_daily_stats(50)
-
-                    logger.info("Розсилка завершена, оновлюємо статистику")
-                    await client.send_message(BOT_ID, "Розсилка завершена, статистику оновлено")
+                    # Статистика тепер оновлюється всередині process_mailing тільки для успішних відправок
+                    logger.info("Розсилка завершена")
+                    await client.send_message(BOT_ID, "Розсилка завершена")
                 except Exception as e:
                     logger.error(f"Помилка під час розсилки: {e}")
                     await client.send_message(BOT_ID, f"Помилка під час розсилки: {e}")
