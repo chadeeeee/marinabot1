@@ -288,30 +288,63 @@ def _distribute_phones_fallback(phone_numbers):
 
 def write_flag(status, target_dir=None):
     """Записати прапор у конкретну директорію юзербота або всі директорії"""
+    success = False
+    
     if target_dir:
         # Записати в конкретну директорію
         flag_file = os.path.join(target_dir, "flag.txt")
         try:
+            # Ensure directory exists
+            os.makedirs(os.path.dirname(flag_file), exist_ok=True)
+            
             with open(flag_file, "w", encoding="utf-8") as f:
                 f.write(status)
             logging.info(f"Статус у файлі-прапорі змінено на: {status} для {target_dir}")
-            return True
+            
+            # Double-check file was actually written
+            if os.path.exists(flag_file):
+                with open(flag_file, "r", encoding="utf-8") as f:
+                    actual_content = f.read().strip()
+                    if actual_content == status:
+                        logging.info(f"Verified flag content: {actual_content}")
+                        success = True
+                    else:
+                        logging.error(f"Flag content mismatch! Expected {status}, got {actual_content}")
+            else:
+                logging.error(f"Flag file {flag_file} doesn't exist after write!")
+                
+            return success
         except Exception as e:
             logging.error(f"Помилка при записі у файл-прапор {flag_file}: {e}")
             return False
     else:
         # Записати в усі директорії
         success_count = 0
+        total_dirs = len(BASE_DIRS)
+        
         for base_dir in BASE_DIRS:
             flag_file = os.path.join(base_dir, "flag.txt")
             try:
+                # Ensure directory exists
+                os.makedirs(os.path.dirname(flag_file), exist_ok=True)
+                
                 with open(flag_file, "w", encoding="utf-8") as f:
                     f.write(status)
-                success_count += 1
+                
+                # Verify write was successful
+                if os.path.exists(flag_file):
+                    with open(flag_file, "r", encoding="utf-8") as f:
+                        if f.read().strip() == status:
+                            success_count += 1
+                
                 logging.info(f"Статус у файлі-прапорі змінено на: {status} для {base_dir}")
             except Exception as e:
                 logging.error(f"Помилка при записі у файл-прапор {flag_file}: {e}")
-        return success_count > 0
+        
+        success = success_count > 0
+        logging.info(f"Flag write complete: {success_count}/{total_dirs} successful")
+        
+        return success
 
 def get_admin_keyboard():
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
@@ -491,19 +524,67 @@ async def start_send_callback(callback: CallbackQuery):
 
 @dp.callback_query(F.data == "start_by_numbers")
 async def start_by_numbers_callback(callback: CallbackQuery, bot: Bot):
-    # Sync files before starting (phones are already distributed)
-    sync_files_to_all_userbots()
+    await callback.message.answer("⏳ Починаю підготовку розсилки по номерах...")
     
-    if write_flag("START"):  # Write to all userbots
+    # Check if all_phones.txt exists in all userbots
+    missing_phones_file = []
+    for base_dir in BASE_DIRS:
+        phones_file = os.path.join(base_dir, "all_phones.txt")
+        if not os.path.exists(phones_file):
+            missing_phones_file.append(base_dir)
+            logging.error(f"Missing phones file in {base_dir}")
+        else:
+            # Check if file has content
+            try:
+                with open(phones_file, "r", encoding="utf-8") as f:
+                    phones = [line.strip() for line in f if line.strip()]
+                    logging.info(f"{base_dir}: Found {len(phones)} phone numbers")
+                    if not phones:
+                        missing_phones_file.append(f"{base_dir} (empty)")
+            except Exception as e:
+                logging.error(f"Error reading phones file in {base_dir}: {e}")
+                missing_phones_file.append(f"{base_dir} (error: {e})")
+    
+    if missing_phones_file:
+        await callback.message.answer(f"⚠️ Попередження: файл з номерами відсутній або порожній у наступних юзерботах:\n{', '.join(missing_phones_file)}")
+    
+    # Sync files before starting (phones are already distributed)
+    sync_result = sync_files_to_all_userbots()
+    if not sync_result:
+        await callback.message.answer("⚠️ Виникли проблеми під час синхронізації файлів. Перевірте журнал помилок.")
+    
+    # Check if message_data.json exists and is valid
+    if not os.path.exists(MESSAGE_DATA_FILE):
+        await callback.message.answer("❌ Повідомлення для розсилки не налаштоване! Спочатку створіть повідомлення.")
+        await callback.answer()
+        return
+    
+    try:
+        with open(MESSAGE_DATA_FILE, "r", encoding="utf-8") as f:
+            message_data = json.load(f)
+            if not message_data.get("type") or not message_data.get("content"):
+                await callback.message.answer("❌ Некоректне повідомлення для розсилки! Налаштуйте повідомлення знову.")
+                await callback.answer()
+                return
+    except Exception as e:
+        await callback.message.answer(f"❌ Помилка читання повідомлення: {str(e)}")
+        await callback.answer()
+        return
+    
+    # Try writing flag with enhanced error detection
+    flag_write_success = write_flag("START")  # Write to all userbots
+    
+    if flag_write_success:
         await callback.message.answer("[INFO] Розсилку розпочато")
         await bot.send_message(519713980, "розсилку розпочато по номерах")
-        await callback.message.edit_text("Розсилку розпочато по номерах (всі userbot'и)", reply_markup=get_admin_keyboard())
+        await callback.message.edit_text("✅ Розсилку розпочато по номерах (всі userbot'и)", reply_markup=get_admin_keyboard())
         
         # Notify users
         await notify_users(bot, "[INFO] Розсилку розпочато")
     else:
-        await callback.message.answer("Не вдалося розпочати розсилку. Перевірте логи")
-        await callback.message.edit_text("Помилка при запуску розсилки", reply_markup=get_admin_keyboard())
+        await callback.message.answer("❌ Не вдалося розпочати розсилку. Проблема із записом файлу-прапора.")
+        await callback.message.edit_text("❌ Помилка при запуску розсилки", reply_markup=get_admin_keyboard())
+    
     await callback.answer()
 
 @dp.callback_query(F.data == "start_by_usernames")
