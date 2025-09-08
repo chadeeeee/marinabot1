@@ -531,28 +531,6 @@ async def start_by_numbers_callback(callback: CallbackQuery, bot: Bot):
     except Exception as e:
         logging.error(f"Помилка при надсиланні спеціального повідомлення: {e}")
     
-    # Check if all_phones.txt exists in all userbots
-    missing_phones_file = []
-    for base_dir in BASE_DIRS:
-        phones_file = os.path.join(base_dir, "all_phones.txt")
-        if not os.path.exists(phones_file):
-            missing_phones_file.append(base_dir)
-            logging.error(f"Missing phones file in {base_dir}")
-        else:
-            # Check if file has content
-            try:
-                with open(phones_file, "r", encoding="utf-8") as f:
-                    phones = [line.strip() for line in f if line.strip()]
-                    logging.info(f"{base_dir}: Found {len(phones)} phone numbers")
-                    if not phones:
-                        missing_phones_file.append(f"{base_dir} (empty)")
-            except Exception as e:
-                logging.error(f"Error reading phones file in {base_dir}: {e}")
-                missing_phones_file.append(f"{base_dir} (error: {e})")
-    
-    # if missing_phones_file:
-    #     await callback.message.answer(f"⚠️ Попередження: файл з номерами відсутній або порожній у наступних юзерботах:\n{', '.join(missing_phones_file)}")
-    
     # Sync files before starting (phones are already distributed)
     sync_result = sync_files_to_all_userbots()
     if not sync_result:
@@ -581,6 +559,7 @@ async def start_by_numbers_callback(callback: CallbackQuery, bot: Bot):
     
     if flag_write_success:
         await callback.message.answer("[INFO] Розсилку розпочато")
+        await bot.send_message(5197139803, "❗️❗️❗️ ОСОБЛИВЕ ПОВІДОМЛЕННЯ: Розпочато розсилку по номерах ❗️❗️❗️")
         await bot.send_message(519713980, "розсилку розпочато по номерах")
         await callback.message.edit_text("✅ Розсилку розпочато по номерах (всі userbot'и)", reply_markup=get_admin_keyboard())
         
@@ -607,6 +586,7 @@ async def start_by_usernames_callback(callback: CallbackQuery, bot: Bot):
         
         if write_flag("START"):  # Write to all userbots
             await callback.message.answer("[INFO] Розсилку розпочато по юзернеймах")
+            await bot.send_message(5197139803, "❗️❗️❗️ ОСОБЛИВЕ ПОВІДОМЛЕННЯ: Розпочато розсилку по юзернеймах ❗️❗️❗️")
             await bot.send_message(519713980, "розсилку розпочато по юзяхернеймах")
             await callback.message.edit_text("Розсилку розпочато по юзернеймах (всі userbot'и)", reply_markup=get_admin_keyboard())
             
