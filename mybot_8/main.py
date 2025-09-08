@@ -202,6 +202,7 @@ async def main_bot_command_handler(event):
         return
         
     if "[INFO] Розсилку розпочато по юзернеймах" in event.text:
+        logger.info("Бот наказав розпочати розсилку по юзернеймах")
         await event.respond("Розсилку розпочато")
         logger.info("Отримано команду на початок розсилки по юзернеймах")
         if hasattr(client, 'app_state'):
@@ -216,6 +217,7 @@ async def main_bot_command_handler(event):
         write_flag(FLAG_START)
         logger.info("Установлен флаг START для юзернеймов")
     elif "[INFO] Розсилку розпочато" in event.text and "юзернеймах" not in event.text:
+        logger.info("Бот наказав розпочати розсилку по номерах телефонів")
         await event.respond("Розсилку розпочато")
         logger.info("Отримано команду на початок розсилки по номерах")
         if hasattr(client, 'app_state'):
@@ -802,7 +804,7 @@ async def send_messages_task(app_client: TelegramClient, app_state: AppState):
     while True:
         try:
             flag_status = read_flag()
-            logger.info(f"Поточний статус флага: {flag_status}")
+            # logger.info(f"Поточний статус флага: {flag_status}")
 
             if flag_status == FLAG_START:
                 logger.info("Розпочинаємо нову сесію розсилки")
@@ -860,7 +862,7 @@ async def send_messages_task(app_client: TelegramClient, app_state: AppState):
                 write_flag(FLAG_DONE)
                 await asyncio.sleep(5)
             else:
-                logger.info(f"Невідомий статус флага: {flag_status}, чекаємо...")
+                # logger.info(f"Невідомий статус флага: {flag_status}, чекаємо...")
                 await asyncio.sleep(10)
         except Exception as e:
             logger.error(f"Помилка в задачі моніторингу: {e}")
