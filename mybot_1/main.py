@@ -203,6 +203,11 @@ async def main_bot_command_handler(event):
         
     if "[INFO] Розсилку розпочато по юзернеймах" in event.text:
         logger.info("Бот наказав розпочати розсилку по юзернеймах")
+        # Перевірка ліцензії перед запуском
+        if not await check_license():
+            await event.respond("Ліцензія не підтверджена. Розсилка не розпочата.")
+            logger.error("Розсилка не розпочата через невірну ліцензію")
+            return
         await event.respond("Розсилку розпочато")
         logger.info("Отримано команду на початок розсилки по юзернеймах")
         if hasattr(client, 'app_state'):
@@ -218,6 +223,11 @@ async def main_bot_command_handler(event):
         logger.info("Установлен флаг START для юзернеймов")
     elif "[INFO] Розсилку розпочато" in event.text and "юзернеймах" not in event.text:
         logger.info("Бот наказав розпочати розсилку по номерах телефонів")
+        # Перевірка ліцензії перед запуском
+        if not await check_license():
+            await event.respond("Ліцензія не підтверджена. Розсилка не розпочата.")
+            logger.error("Розсилка не розпочата через невірну ліцензію")
+            return
         await event.respond("Розсилку розпочато")
         logger.info("Отримано команду на початок розсилки по номерах")
         if hasattr(client, 'app_state'):
@@ -869,6 +879,27 @@ async def send_messages_task(app_client: TelegramClient, app_state: AppState):
             await asyncio.sleep(10)
 
 
+async def check_license():
+    """Перевірка ліцензії перед запуском розсилки"""
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(LICENSE_CHECK_URL) as resp:
+                if resp.status == 200:
+                    data = await resp.json()
+                    if data.get("license_code") == EXPECTED_LICENSE_CODE:
+                        logger.info("Ліцензія підтверджена")
+                        return True
+                    else:
+                        logger.error("Ліцензія невірна")
+                        return False
+                else:
+                    logger.error(f"Помилка перевірки ліцензії: HTTP {resp.status}")
+                    return False
+    except Exception as e:
+        logger.error(f"Помилка при перевірці ліцензії: {e}")
+        return False
+
+
 async def main():
     # Initialize app state
     client.app_state = AppState()
@@ -877,12 +908,20 @@ async def main():
     async with client:
         logger.info("Клієнт успішно підключено, запускаємо основні задачі...")
         
-        # Start the message sending task
-        await send_messages_task(client, client.app_state)
-
+        # Створити фонову задачу для send_messages_task
+        task = asyncio.create_task(send_messages_task(client, client.app_state))
+        
         logger.info("Основні задачі запущено, чекаємо повідомлень...")
         # Handle new messages (for commands)
-        await client.run_until_disconnected()
+        try:
+            await client.run_until_disconnected()
+        finally:
+            # Скасувати фонову задачу при завершенні
+            task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
 
 
 if __name__ == "__main__":
