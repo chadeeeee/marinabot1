@@ -855,3 +855,253 @@ telethon.errors.common.TypeNotFoundError: Could not find a matching Constructor 
 2025-09-08 18:53:25,695 - INFO - Статус флага: DONE, чекаємо...
 2025-09-08 18:53:55,706 - INFO - Поточний статус флага: DONE
 2025-09-08 18:53:55,706 - INFO - Статус флага: DONE, чекаємо...
+2025-09-08 19:42:51,935 - INFO - Рабочая директория: D:\Code\marinabot1\mybot_1
+2025-09-08 19:42:51,936 - INFO - Файл с Usernames: D:\Code\marinabot1\mybot_1\all_usernames.txt
+2025-09-08 19:42:51,936 - INFO - Файл данных сообщения: D:\Code\marinabot1\mybot_1\message_data.json
+2025-09-08 19:42:51,936 - INFO - Файл общей статистики: D:\Code\marinabot1\mybot_1\stats.txt
+2025-09-08 19:42:51,936 - INFO - Файл дневной статистики: D:\Code\marinabot1\mybot_1\daily_stats.json
+2025-09-08 19:42:51,936 - INFO - Файл-флаг: D:\Code\marinabot1\mybot_1\flag.txt
+2025-09-08 19:42:51,936 - INFO - Файл чатов: D:\Code\marinabot1\mybot_1\chats.txt
+2025-09-08 19:42:51,937 - INFO - Connecting to 149.154.167.51:443/TcpFull...
+2025-09-08 19:42:51,973 - INFO - Connection to 149.154.167.51:443/TcpFull complete!
+2025-09-08 19:42:52,661 - INFO - Клієнт успішно підключено, запускаємо основні задачі...
+2025-09-08 19:42:52,662 - INFO - Основні задачі запущено, чекаємо повідомлень...
+2025-09-08 19:42:52,662 - INFO - Задача мониторинга файла-флага і рассилки запущена.
+2025-09-08 19:43:12,695 - INFO - Розпочинаємо нову сесію розсилки
+2025-09-08 19:43:12,696 - INFO - Статус рассылки изменен на RUNNING
+2025-09-08 19:43:12,696 - INFO - Статус розсилки оновлено на RUNNING
+2025-09-08 19:43:12,696 - ERROR - Невідомий тип цільової розсилки: None
+2025-09-08 19:43:12,791 - ERROR - Помилка під час розсилки: Could not find the input entity for PeerUser(user_id=8136612723) (PeerUser). Please read https://docs.telethon.dev/en/stable/concepts/entities.html to find out more details.
+2025-09-08 19:43:12,893 - INFO - Статус рассылки изменен на DONE
+2025-09-08 19:43:12,894 - INFO - Сесія розсилки завершена
+2025-09-08 19:43:12,894 - ERROR - Помилка в задачі моніторингу: Could not find the input entity for PeerUser(user_id=8136612723) (PeerUser). Please read https://docs.telethon.dev/en/stable/concepts/entities.html to find out more details.
+2025-09-08 19:45:43,005 - INFO - Розпочинаємо нову сесію розсилки
+2025-09-08 19:45:43,005 - INFO - Статус рассылки изменен на RUNNING
+2025-09-08 19:45:43,006 - INFO - Статус розсилки оновлено на RUNNING
+2025-09-08 19:45:43,006 - ERROR - Невідомий тип цільової розсилки: None
+2025-09-08 19:45:43,133 - ERROR - Помилка під час розсилки: Could not find the input entity for PeerUser(user_id=8136612723) (PeerUser). Please read https://docs.telethon.dev/en/stable/concepts/entities.html to find out more details.
+2025-09-08 19:45:43,247 - INFO - Статус рассылки изменен на DONE
+2025-09-08 19:45:43,247 - INFO - Сесія розсилки завершена
+2025-09-08 19:45:43,247 - ERROR - Помилка в задачі моніторингу: Could not find the input entity for PeerUser(user_id=8136612723) (PeerUser). Please read https://docs.telethon.dev/en/stable/concepts/entities.html to find out more details.
+2025-09-08 19:46:58,345 - INFO - Рабочая директория: D:\Code\marinabot1\mybot_1
+2025-09-08 19:46:58,345 - INFO - Файл с Usernames: D:\Code\marinabot1\mybot_1\all_usernames.txt
+2025-09-08 19:46:58,345 - INFO - Файл данных сообщения: D:\Code\marinabot1\mybot_1\message_data.json
+2025-09-08 19:46:58,345 - INFO - Файл общей статистики: D:\Code\marinabot1\mybot_1\stats.txt
+2025-09-08 19:46:58,345 - INFO - Файл дневной статистики: D:\Code\marinabot1\mybot_1\daily_stats.json
+2025-09-08 19:46:58,345 - INFO - Файл-флаг: D:\Code\marinabot1\mybot_1\flag.txt
+2025-09-08 19:46:58,345 - INFO - Файл чатов: D:\Code\marinabot1\mybot_1\chats.txt
+2025-09-08 19:46:58,346 - INFO - Connecting to 149.154.167.51:443/TcpFull...
+2025-09-08 19:46:58,383 - INFO - Connection to 149.154.167.51:443/TcpFull complete!
+2025-09-08 19:46:58,659 - INFO - Клієнт успішно підключено, запускаємо основні задачі...
+2025-09-08 19:46:58,660 - INFO - Основні задачі запущено, чекаємо повідомлень...
+2025-09-08 19:46:58,660 - INFO - Задача мониторинга файла-флага і рассилки запущена.
+2025-09-08 19:47:13,920 - INFO - Disconnecting from 149.154.167.51:443/TcpFull...
+2025-09-08 19:47:13,921 - INFO - Disconnection from 149.154.167.51:443/TcpFull complete!
+2025-09-08 19:47:13,923 - INFO - Not disconnecting (already have no connection)
+2025-09-08 19:47:15,450 - INFO - Рабочая директория: D:\Code\marinabot1\mybot_1
+2025-09-08 19:47:15,450 - INFO - Файл с Usernames: D:\Code\marinabot1\mybot_1\all_usernames.txt
+2025-09-08 19:47:15,451 - INFO - Файл данных сообщения: D:\Code\marinabot1\mybot_1\message_data.json
+2025-09-08 19:47:15,451 - INFO - Файл общей статистики: D:\Code\marinabot1\mybot_1\stats.txt
+2025-09-08 19:47:15,451 - INFO - Файл дневной статистики: D:\Code\marinabot1\mybot_1\daily_stats.json
+2025-09-08 19:47:15,451 - INFO - Файл-флаг: D:\Code\marinabot1\mybot_1\flag.txt
+2025-09-08 19:47:15,451 - INFO - Файл чатов: D:\Code\marinabot1\mybot_1\chats.txt
+2025-09-08 19:47:15,452 - INFO - Connecting to 149.154.167.51:443/TcpFull...
+2025-09-08 19:47:15,491 - INFO - Connection to 149.154.167.51:443/TcpFull complete!
+2025-09-08 19:47:15,907 - INFO - Клієнт успішно підключено, запускаємо основні задачі...
+2025-09-08 19:47:15,907 - INFO - Основні задачі запущено, чекаємо повідомлень...
+2025-09-08 19:47:15,908 - INFO - Задача мониторинга файла-флага і рассилки запущена.
+2025-09-08 19:49:26,021 - INFO - Розпочинаємо нову сесію розсилки
+2025-09-08 19:49:26,022 - INFO - Статус рассылки изменен на RUNNING
+2025-09-08 19:49:26,022 - INFO - Статус розсилки оновлено на RUNNING
+2025-09-08 19:49:26,022 - WARNING - target_type не встановлено, пропускаємо розсилку
+2025-09-08 19:49:26,023 - INFO - Статус рассылки изменен на IDLE
+2025-09-08 19:49:36,023 - INFO - Статус рассылки изменен на DONE
+2025-09-08 19:49:36,023 - INFO - Сесія розсилки завершена
+2025-09-08 19:51:09,629 - INFO - Рабочая директория: D:\Code\marinabot1\mybot_1
+2025-09-08 19:51:09,629 - INFO - Файл с Usernames: D:\Code\marinabot1\mybot_1\all_usernames.txt
+2025-09-08 19:51:09,630 - INFO - Файл данных сообщения: D:\Code\marinabot1\mybot_1\message_data.json
+2025-09-08 19:51:09,630 - INFO - Файл общей статистики: D:\Code\marinabot1\mybot_1\stats.txt
+2025-09-08 19:51:09,630 - INFO - Файл дневной статистики: D:\Code\marinabot1\mybot_1\daily_stats.json
+2025-09-08 19:51:09,630 - INFO - Файл-флаг: D:\Code\marinabot1\mybot_1\flag.txt
+2025-09-08 19:51:09,630 - INFO - Файл чатов: D:\Code\marinabot1\mybot_1\chats.txt
+2025-09-08 19:51:09,631 - INFO - Connecting to 149.154.167.51:443/TcpFull...
+2025-09-08 19:51:09,666 - INFO - Connection to 149.154.167.51:443/TcpFull complete!
+2025-09-08 19:51:09,934 - INFO - Клієнт успішно підключено, запускаємо основні задачі...
+2025-09-08 19:51:09,935 - INFO - Основні задачі запущено, чекаємо повідомлень...
+2025-09-08 19:51:09,935 - INFO - Задача мониторинга файла-флага і рассилки запущена.
+2025-09-08 19:51:29,941 - INFO - Розпочинаємо нову сесію розсилки
+2025-09-08 19:51:29,942 - INFO - Статус рассылки изменен на RUNNING
+2025-09-08 19:51:29,942 - INFO - Статус розсилки оновлено на RUNNING
+2025-09-08 19:51:29,942 - WARNING - target_type не встановлено, чекаємо... (спроба 1)
+2025-09-08 19:51:39,946 - WARNING - target_type не встановлено, чекаємо... (спроба 2)
+2025-09-08 19:51:49,948 - WARNING - target_type не встановлено, чекаємо... (спроба 3)
+2025-09-08 19:51:59,963 - WARNING - target_type не встановлено, чекаємо... (спроба 4)
+2025-09-08 19:52:09,966 - WARNING - target_type не встановлено, чекаємо... (спроба 5)
+2025-09-08 19:52:19,968 - ERROR - target_type все ще не встановлено після очікування, пропускаємо розсилку
+2025-09-08 19:52:19,968 - INFO - Статус рассылки изменен на IDLE
+2025-09-08 19:52:29,975 - INFO - Статус рассылки изменен на DONE
+2025-09-08 19:52:29,975 - INFO - Сесія розсилки завершена
+2025-09-08 19:54:02,944 - INFO - Disconnecting from 149.154.167.51:443/TcpFull...
+2025-09-08 19:54:02,944 - INFO - Disconnection from 149.154.167.51:443/TcpFull complete!
+2025-09-08 19:54:02,947 - INFO - Not disconnecting (already have no connection)
+2025-09-08 19:54:04,364 - INFO - Рабочая директория: D:\Code\marinabot1\mybot_1
+2025-09-08 19:54:04,364 - INFO - Файл с Usernames: D:\Code\marinabot1\mybot_1\all_usernames.txt
+2025-09-08 19:54:04,364 - INFO - Файл данных сообщения: D:\Code\marinabot1\mybot_1\message_data.json
+2025-09-08 19:54:04,364 - INFO - Файл общей статистики: D:\Code\marinabot1\mybot_1\stats.txt
+2025-09-08 19:54:04,365 - INFO - Файл дневной статистики: D:\Code\marinabot1\mybot_1\daily_stats.json
+2025-09-08 19:54:04,365 - INFO - Файл-флаг: D:\Code\marinabot1\mybot_1\flag.txt
+2025-09-08 19:54:04,365 - INFO - Файл чатов: D:\Code\marinabot1\mybot_1\chats.txt
+2025-09-08 19:54:04,365 - INFO - Connecting to 149.154.167.51:443/TcpFull...
+2025-09-08 19:54:04,403 - INFO - Connection to 149.154.167.51:443/TcpFull complete!
+2025-09-08 19:54:04,705 - INFO - Клієнт успішно підключено, запускаємо основні задачі...
+2025-09-08 19:54:04,705 - INFO - Основні задачі запущено, чекаємо повідомлень...
+2025-09-08 19:54:04,705 - INFO - Задача мониторинга файла-флага і рассилки запущена.
+2025-09-08 19:54:34,754 - INFO - Розпочинаємо нову сесію розсилки
+2025-09-08 19:54:34,755 - INFO - Статус рассылки изменен на RUNNING
+2025-09-08 19:54:34,755 - INFO - Статус розсилки оновлено на RUNNING
+2025-09-08 19:54:34,755 - ERROR - Файл D:\Code\marinabot1\mybot_1\all_usernames.txt пустой
+2025-09-08 19:54:34,811 - ERROR - Не удалось отправить сообщение боту: Could not find the input entity for PeerUser(user_id=8136612723) (PeerUser). Please read https://docs.telethon.dev/en/stable/concepts/entities.html to find out more details.
+2025-09-08 19:54:34,812 - INFO - Общая статистика обновлена: 0 новых сообщений (всего: 0).
+2025-09-08 19:54:34,813 - INFO - Дата в D:\Code\marinabot1\mybot_1\daily_stats.json (2025-06-29) не совпадает с сегодняшней (2025-09-08) или не является словарем. Сбрасываю дневной счетчик.
+2025-09-08 19:54:34,813 - INFO - Дневная статистика обновлена: 0 новых, всего сегодня: 0
+2025-09-08 19:54:34,813 - INFO - Розсилка завершена, оновлюємо статистику
+2025-09-08 19:54:34,922 - ERROR - Не удалось отправить сообщение боту: Could not find the input entity for PeerUser(user_id=8136612723) (PeerUser). Please read https://docs.telethon.dev/en/stable/concepts/entities.html to find out more details.
+2025-09-08 19:54:34,922 - INFO - Статус рассылки изменен на DONE
+2025-09-08 19:54:34,923 - INFO - Сесія розсилки завершена
+2025-09-08 19:56:35,043 - INFO - Розпочинаємо нову сесію розсилки
+2025-09-08 19:56:35,044 - INFO - Статус рассылки изменен на RUNNING
+2025-09-08 19:56:35,044 - INFO - Статус розсилки оновлено на RUNNING
+2025-09-08 19:56:35,044 - ERROR - Файл D:\Code\marinabot1\mybot_1\all_usernames.txt пустой
+2025-09-08 19:56:35,088 - ERROR - Не удалось отправить сообщение боту: Could not find the input entity for PeerUser(user_id=8136612723) (PeerUser). Please read https://docs.telethon.dev/en/stable/concepts/entities.html to find out more details.
+2025-09-08 19:56:35,089 - INFO - Общая статистика обновлена: 0 новых сообщений (всего: 0).
+2025-09-08 19:56:35,096 - INFO - Дневная статистика обновлена: 0 новых, всего сегодня: 0
+2025-09-08 19:56:35,096 - INFO - Розсилка завершена, оновлюємо статистику
+2025-09-08 19:56:35,141 - ERROR - Не удалось отправить сообщение боту: Could not find the input entity for PeerUser(user_id=8136612723) (PeerUser). Please read https://docs.telethon.dev/en/stable/concepts/entities.html to find out more details.
+2025-09-08 19:56:35,142 - INFO - Статус рассылки изменен на DONE
+2025-09-08 19:56:35,142 - INFO - Сесія розсилки завершена
+2025-09-08 19:58:45,226 - INFO - Розпочинаємо нову сесію розсилки
+2025-09-08 19:58:45,227 - INFO - Статус рассылки изменен на RUNNING
+2025-09-08 19:58:45,227 - INFO - Статус розсилки оновлено на RUNNING
+2025-09-08 19:58:45,227 - ERROR - Файл D:\Code\marinabot1\mybot_1\all_usernames.txt пустой
+2025-09-08 19:58:45,273 - ERROR - Не удалось отправить сообщение боту: Could not find the input entity for PeerUser(user_id=8136612723) (PeerUser). Please read https://docs.telethon.dev/en/stable/concepts/entities.html to find out more details.
+2025-09-08 19:58:45,274 - INFO - Общая статистика обновлена: 0 новых сообщений (всего: 0).
+2025-09-08 19:58:45,275 - INFO - Дневная статистика обновлена: 0 новых, всего сегодня: 0
+2025-09-08 19:58:45,275 - INFO - Розсилка завершена, оновлюємо статистику
+2025-09-08 19:58:45,326 - ERROR - Не удалось отправить сообщение боту: Could not find the input entity for PeerUser(user_id=8136612723) (PeerUser). Please read https://docs.telethon.dev/en/stable/concepts/entities.html to find out more details.
+2025-09-08 19:58:45,327 - INFO - Статус рассылки изменен на DONE
+2025-09-08 19:58:45,327 - INFO - Сесія розсилки завершена
+2025-09-08 20:00:42,905 - INFO - Рабочая директория: D:\Code\marinabot1\mybot_1
+2025-09-08 20:00:42,905 - INFO - Файл с Usernames: D:\Code\marinabot1\mybot_1\all_usernames.txt
+2025-09-08 20:00:42,906 - INFO - Файл данных сообщения: D:\Code\marinabot1\mybot_1\message_data.json
+2025-09-08 20:00:42,906 - INFO - Файл общей статистики: D:\Code\marinabot1\mybot_1\stats.txt
+2025-09-08 20:00:42,906 - INFO - Файл дневной статистики: D:\Code\marinabot1\mybot_1\daily_stats.json
+2025-09-08 20:00:42,906 - INFO - Файл-флаг: D:\Code\marinabot1\mybot_1\flag.txt
+2025-09-08 20:00:42,906 - INFO - Файл чатов: D:\Code\marinabot1\mybot_1\chats.txt
+2025-09-08 20:00:42,907 - INFO - Connecting to 149.154.167.51:443/TcpFull...
+2025-09-08 20:00:42,946 - INFO - Connection to 149.154.167.51:443/TcpFull complete!
+2025-09-08 20:00:43,238 - INFO - Клієнт успішно підключено, запускаємо основні задачі...
+2025-09-08 20:00:43,239 - INFO - Основні задачі запущено, чекаємо повідомлень...
+2025-09-08 20:00:43,239 - INFO - Задача мониторинга файла-флага і рассилки запущена.
+2025-09-08 20:00:53,246 - INFO - Розпочинаємо нову сесію розсилки
+2025-09-08 20:00:53,246 - INFO - Статус рассылки изменен на RUNNING
+2025-09-08 20:00:53,247 - INFO - Статус розсилки оновлено на RUNNING
+2025-09-08 20:00:53,247 - ERROR - Файл D:\Code\marinabot1\mybot_1\all_usernames.txt пустой
+2025-09-08 20:00:53,292 - ERROR - Не удалось отправить сообщение боту: Could not find the input entity for PeerUser(user_id=8136612723) (PeerUser). Please read https://docs.telethon.dev/en/stable/concepts/entities.html to find out more details.
+2025-09-08 20:00:53,293 - INFO - Общая статистика обновлена: 0 новых сообщений (всего: 0).
+2025-09-08 20:00:53,294 - INFO - Дневная статистика обновлена: 0 новых, всего сегодня: 0
+2025-09-08 20:00:53,294 - INFO - Розсилка завершена, оновлюємо статистику
+2025-09-08 20:00:53,339 - ERROR - Не удалось отправить сообщение боту: Could not find the input entity for PeerUser(user_id=8136612723) (PeerUser). Please read https://docs.telethon.dev/en/stable/concepts/entities.html to find out more details.
+2025-09-08 20:00:53,341 - INFO - Статус рассылки изменен на DONE
+2025-09-08 20:00:53,341 - INFO - Сесія розсилки завершена
+2025-09-08 20:04:30,458 - INFO - Розпочинаємо нову сесію розсилки
+2025-09-08 20:04:30,458 - INFO - Статус рассылки изменен на RUNNING
+2025-09-08 20:04:30,459 - INFO - Статус розсилки оновлено на RUNNING
+2025-09-08 20:04:30,459 - ERROR - Файл D:\Code\marinabot1\mybot_1\all_usernames.txt пустой
+2025-09-08 20:04:30,510 - ERROR - Не удалось отправить сообщение боту: Could not find the input entity for PeerUser(user_id=8136612723) (PeerUser). Please read https://docs.telethon.dev/en/stable/concepts/entities.html to find out more details.
+2025-09-08 20:04:30,510 - INFO - Общая статистика обновлена: 0 новых сообщений (всего: 0).
+2025-09-08 20:04:30,512 - INFO - Дневная статистика обновлена: 0 новых, всего сегодня: 0
+2025-09-08 20:04:30,512 - INFO - Розсилка завершена, оновлюємо статистику
+2025-09-08 20:04:30,559 - ERROR - Не удалось отправить сообщение боту: Could not find the input entity for PeerUser(user_id=8136612723) (PeerUser). Please read https://docs.telethon.dev/en/stable/concepts/entities.html to find out more details.
+2025-09-08 20:04:30,560 - INFO - Статус рассылки изменен на DONE
+2025-09-08 20:04:30,560 - INFO - Сесія розсилки завершена
+2025-09-08 20:14:59,419 - WARNING - Server closed the connection: 0 bytes read on a total of 8 expected bytes
+2025-09-08 20:14:59,419 - INFO - Connection closed while receiving data: 0 bytes read on a total of 8 expected bytes
+2025-09-08 20:14:59,419 - INFO - Closing current connection to begin reconnect...
+2025-09-08 20:14:59,420 - INFO - Connecting to 149.154.167.51:443/TcpFull...
+2025-09-08 20:14:59,458 - INFO - Connection to 149.154.167.51:443/TcpFull complete!
+2025-09-08 20:16:11,077 - INFO - Розпочинаємо нову сесію розсилки
+2025-09-08 20:16:11,077 - INFO - Статус рассылки изменен на RUNNING
+2025-09-08 20:16:11,077 - INFO - Статус розсилки оновлено на RUNNING
+2025-09-08 20:16:11,078 - ERROR - Файл D:\Code\marinabot1\mybot_1\all_usernames.txt пустой
+2025-09-08 20:16:11,131 - ERROR - Не удалось отправить сообщение боту: Could not find the input entity for PeerUser(user_id=8136612723) (PeerUser). Please read https://docs.telethon.dev/en/stable/concepts/entities.html to find out more details.
+2025-09-08 20:16:11,132 - INFO - Общая статистика обновлена: 0 новых сообщений (всего: 0).
+2025-09-08 20:16:11,133 - INFO - Дневная статистика обновлена: 0 новых, всего сегодня: 0
+2025-09-08 20:16:11,133 - INFO - Розсилка завершена, оновлюємо статистику
+2025-09-08 20:16:11,180 - ERROR - Не удалось отправить сообщение боту: Could not find the input entity for PeerUser(user_id=8136612723) (PeerUser). Please read https://docs.telethon.dev/en/stable/concepts/entities.html to find out more details.
+2025-09-08 20:16:11,181 - INFO - Статус рассылки изменен на DONE
+2025-09-08 20:16:11,181 - INFO - Сесія розсилки завершена
+2025-09-08 20:17:21,252 - INFO - Розпочинаємо нову сесію розсилки
+2025-09-08 20:17:21,253 - INFO - Статус рассылки изменен на RUNNING
+2025-09-08 20:17:21,253 - INFO - Статус розсилки оновлено на RUNNING
+2025-09-08 20:17:21,253 - ERROR - Файл D:\Code\marinabot1\mybot_1\all_usernames.txt пустой
+2025-09-08 20:17:21,377 - ERROR - Не удалось отправить сообщение боту: Could not find the input entity for PeerUser(user_id=8136612723) (PeerUser). Please read https://docs.telethon.dev/en/stable/concepts/entities.html to find out more details.
+2025-09-08 20:17:21,378 - INFO - Общая статистика обновлена: 0 новых сообщений (всего: 0).
+2025-09-08 20:17:21,379 - INFO - Дневная статистика обновлена: 0 новых, всего сегодня: 0
+2025-09-08 20:17:21,379 - INFO - Розсилка завершена, оновлюємо статистику
+2025-09-08 20:17:21,503 - ERROR - Не удалось отправить сообщение боту: Could not find the input entity for PeerUser(user_id=8136612723) (PeerUser). Please read https://docs.telethon.dev/en/stable/concepts/entities.html to find out more details.
+2025-09-08 20:17:21,504 - INFO - Статус рассылки изменен на DONE
+2025-09-08 20:17:21,504 - INFO - Сесія розсилки завершена
+2025-09-08 20:30:43,449 - WARNING - Server closed the connection: 0 bytes read on a total of 8 expected bytes
+2025-09-08 20:30:43,449 - INFO - Connection closed while receiving data: 0 bytes read on a total of 8 expected bytes
+2025-09-08 20:30:43,449 - INFO - Closing current connection to begin reconnect...
+2025-09-08 20:30:43,450 - INFO - Connecting to 149.154.167.51:443/TcpFull...
+2025-09-08 20:30:43,487 - INFO - Connection to 149.154.167.51:443/TcpFull complete!
+2025-09-08 20:37:46,349 - WARNING - Server closed the connection: 0 bytes read on a total of 8 expected bytes
+2025-09-08 20:37:46,349 - INFO - Connection closed while receiving data: 0 bytes read on a total of 8 expected bytes
+2025-09-08 20:37:46,349 - INFO - Closing current connection to begin reconnect...
+2025-09-08 20:37:46,350 - INFO - Connecting to 149.154.167.51:443/TcpFull...
+2025-09-08 20:37:46,391 - INFO - Connection to 149.154.167.51:443/TcpFull complete!
+2025-09-08 20:43:02,710 - INFO - Розпочинаємо нову сесію розсилки
+2025-09-08 20:43:02,710 - INFO - Статус рассылки изменен на RUNNING
+2025-09-08 20:43:02,711 - INFO - Статус розсилки оновлено на RUNNING
+2025-09-08 20:43:02,711 - ERROR - Файл D:\Code\marinabot1\mybot_1\all_usernames.txt пустой
+2025-09-08 20:43:02,850 - ERROR - Не удалось отправить сообщение боту: Could not find the input entity for PeerUser(user_id=8136612723) (PeerUser). Please read https://docs.telethon.dev/en/stable/concepts/entities.html to find out more details.
+2025-09-08 20:43:02,851 - INFO - Общая статистика обновлена: 0 новых сообщений (всего: 0).
+2025-09-08 20:43:02,852 - INFO - Дневная статистика обновлена: 0 новых, всего сегодня: 0
+2025-09-08 20:43:02,852 - INFO - Розсилка завершена, оновлюємо статистику
+2025-09-08 20:43:02,982 - ERROR - Не удалось отправить сообщение боту: Could not find the input entity for PeerUser(user_id=8136612723) (PeerUser). Please read https://docs.telethon.dev/en/stable/concepts/entities.html to find out more details.
+2025-09-08 20:43:02,982 - INFO - Статус рассылки изменен на DONE
+2025-09-08 20:43:02,982 - INFO - Сесія розсилки завершена
+2025-09-08 20:44:43,049 - INFO - Розпочинаємо нову сесію розсилки
+2025-09-08 20:44:43,049 - INFO - Статус рассылки изменен на RUNNING
+2025-09-08 20:44:43,049 - INFO - Статус розсилки оновлено на RUNNING
+2025-09-08 20:44:43,050 - ERROR - Файл D:\Code\marinabot1\mybot_1\all_usernames.txt пустой
+2025-09-08 20:44:43,232 - ERROR - Не удалось отправить сообщение боту: Could not find the input entity for PeerUser(user_id=8136612723) (PeerUser). Please read https://docs.telethon.dev/en/stable/concepts/entities.html to find out more details.
+2025-09-08 20:44:43,233 - INFO - Общая статистика обновлена: 0 новых сообщений (всего: 0).
+2025-09-08 20:44:43,234 - INFO - Дневная статистика обновлена: 0 новых, всего сегодня: 0
+2025-09-08 20:44:43,235 - INFO - Розсилка завершена, оновлюємо статистику
+2025-09-08 20:44:43,395 - ERROR - Не удалось отправить сообщение боту: Could not find the input entity for PeerUser(user_id=8136612723) (PeerUser). Please read https://docs.telethon.dev/en/stable/concepts/entities.html to find out more details.
+2025-09-08 20:44:43,396 - INFO - Статус рассылки изменен на DONE
+2025-09-08 20:44:43,396 - INFO - Сесія розсилки завершена
+2025-09-08 20:47:23,539 - INFO - Розпочинаємо нову сесію розсилки
+2025-09-08 20:47:23,539 - INFO - Статус рассылки изменен на RUNNING
+2025-09-08 20:47:23,539 - INFO - Статус розсилки оновлено на RUNNING
+2025-09-08 20:47:23,540 - ERROR - Файл D:\Code\marinabot1\mybot_1\all_usernames.txt пустой
+2025-09-08 20:47:23,665 - ERROR - Не удалось отправить сообщение боту: Could not find the input entity for PeerUser(user_id=8136612723) (PeerUser). Please read https://docs.telethon.dev/en/stable/concepts/entities.html to find out more details.
+2025-09-08 20:47:23,666 - INFO - Общая статистика обновлена: 0 новых сообщений (всего: 0).
+2025-09-08 20:47:23,667 - INFO - Дневная статистика обновлена: 0 новых, всего сегодня: 0
+2025-09-08 20:47:23,668 - INFO - Розсилка завершена, оновлюємо статистику
+2025-09-08 20:47:23,756 - ERROR - Не удалось отправить сообщение боту: Could not find the input entity for PeerUser(user_id=8136612723) (PeerUser). Please read https://docs.telethon.dev/en/stable/concepts/entities.html to find out more details.
+2025-09-08 20:47:23,757 - INFO - Статус рассылки изменен на DONE
+2025-09-08 20:47:23,757 - INFO - Сесія розсилки завершена
+2025-09-08 20:49:33,874 - INFO - Розпочинаємо нову сесію розсилки
+2025-09-08 20:49:33,875 - INFO - Статус рассылки изменен на RUNNING
+2025-09-08 20:49:33,875 - INFO - Статус розсилки оновлено на RUNNING
+2025-09-08 20:49:33,875 - ERROR - Файл D:\Code\marinabot1\mybot_1\all_usernames.txt пустой
+2025-09-08 20:49:33,932 - ERROR - Не удалось отправить сообщение боту: Could not find the input entity for PeerUser(user_id=8136612723) (PeerUser). Please read https://docs.telethon.dev/en/stable/concepts/entities.html to find out more details.
+2025-09-08 20:49:33,933 - INFO - Общая статистика обновлена: 0 новых сообщений (всего: 0).
+2025-09-08 20:49:33,934 - INFO - Дневная статистика обновлена: 0 новых, всего сегодня: 0
+2025-09-08 20:49:33,934 - INFO - Розсилка завершена, оновлюємо статистику
+2025-09-08 20:49:33,999 - ERROR - Не удалось отправить сообщение боту: Could not find the input entity for PeerUser(user_id=8136612723) (PeerUser). Please read https://docs.telethon.dev/en/stable/concepts/entities.html to find out more details.
+2025-09-08 20:49:34,000 - INFO - Статус рассылки изменен на DONE
+2025-09-08 20:49:34,000 - INFO - Сесія розсилки завершена

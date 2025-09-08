@@ -4,9 +4,9 @@ import json
 import asyncio
 import logging
 import random
-import traceback
 import hashlib
 from datetime import date
+import aiohttp  # Added for async HTTP requests
 
 from telethon.sync import TelegramClient
 from telethon import events
@@ -66,7 +66,7 @@ class AppState:
     def __init__(self):
         self.bot_mailing_command_received = False
         self.sending_active = False
-        self.target_type = None
+        self.target_type = "usernames"  # Default to usernames
         self.target_file = None
 
     def set_mailing_command_received(self):
@@ -81,7 +81,7 @@ class AppState:
     def reset_for_shutdown(self):
         self.bot_mailing_command_received = False
         self.sending_active = False
-        self.target_type = None
+        self.target_type = "usernames"  # Reset to default
         self.target_file = None
         logger.info("Флаги стану програми скинуті для завершення роботи.")
 
@@ -288,83 +288,82 @@ async def main_bot_command_handler(event):
 
 
 async def process_mailing(target_type, filename):
-	if not os.path.exists(filename):
-		logger.error(f"Файл {filename} не найден")
-		await client.send_message(BOT_ID, f"Ошибка: файл {filename} не найден")
-		return
-	with open(filename, "r", encoding="utf-8") as f:
-		targets = [line.strip() for line in f if line.strip()]
-	if not targets:
-		logger.error(f"Файл {filename} пустой")
-		await client.send_message(BOT_ID, f"Ошибка: файл {filename} пустой")
-		return
-	await client.send_message(BOT_ID, f"Начинается рассылка по {len(targets)} {'юзернеймам' if target_type=='usernames' else 'номерам'}")
-	sent_count = 0
-	failed_count = 0
-	for target in targets:
-		if read_flag() == FLAG_STOP:
-			await client.send_message(BOT_ID, "Рассылка остановлена пользователем")
-			return
-		try:
-			message_data = read_message_data()
-			if not message_data:
-				await client.send_message(BOT_ID, "Ошибка: не удалось получить данные сообщения")
-				return
-			msg_type = message_data.get("type")
-			content = message_data.get("content")
-			caption = message_data.get("caption")
-			if target_type == "usernames":
-				success, error = await send_message_to_username(client, target, msg_type, content, caption)
-			else:
-				success, error = await send_message_to_phone(client, target, msg_type, content, caption)
-			if success:
-				sent_count += 1
-			else:
-				failed_count += 1
-				logger.error(f"Ошибка при отправке к {target}: {error}")
-			await asyncio.sleep(random.uniform(MIN_DELAY_SECONDS, MAX_DELAY_SECONDS))
-		except Exception as e:
-			logger.error(f"Ошибка при отправке к {target}: {e}")
-			failed_count += 1
-	await client.send_message(BOT_ID, f"Рассылка завершена\nУспешно: {sent_count}\nОшибок: {failed_count}")
+    if not os.path.exists(filename):
+        logger.error(f"Файл {filename} не найден")
+        await client.send_message(BOT_ID, f"Ошибка: файл {filename} не найден")
+        return
+    with open(filename, "r", encoding="utf-8") as f:
+        targets = [line.strip() for line in f if line.strip()]
+    if not targets:
+        logger.error(f"Файл {filename} пустой")
+        await client.send_message(BOT_ID, f"Ошибка: файл {filename} пустой")
+        return
+    await client.send_message(BOT_ID, f"Начинается рассылка по {len(targets)} {'юзернеймам' if target_type=='usernames' else 'номерам'}")
+    sent_count = 0
+    failed_count = 0
+    for target in targets:
+        if read_flag() == FLAG_STOP:
+            await client.send_message(BOT_ID, "Рассылка остановлена пользователем")
+            return
+        try:
+            message_data = read_message_data()
+            if not message_data:
+                await client.send_message(BOT_ID, "Ошибка: не удалось получить данные сообщения")
+                return
+            msg_type = message_data.get("type")
+            content = message_data.get("content")
+            caption = message_data.get("caption")
+            if target_type == "usernames":
+                success, error = await send_message_to_username(client, target, msg_type, content, caption)
+            else:
+                success, error = await send_message_to_phone(client, target, msg_type, content, caption)
+            if success:
+                sent_count += 1
+            else:
+                failed_count += 1
+                logger.error(f"Ошибка при отправке к {target}: {error}")
+            await asyncio.sleep(random.uniform(MIN_DELAY_SECONDS, MAX_DELAY_SECONDS))
+        except Exception as e:
+            logger.error(f"Ошибка при отправке к {target}: {e}")
+            failed_count += 1
+    await client.send_message(BOT_ID, f"Рассылка завершена\nУспешно: {sent_count}\nОшибок: {failed_count}")
 
 def read_flag():
-	try:
-		if os.path.exists(FLAG_FILE):
-			with open(FLAG_FILE, "r", encoding="utf-8") as f:
-				return f.read().strip().upper()
-		else:
-			write_flag(FLAG_IDLE)
-			return FLAG_IDLE
-	except Exception as e:
-		logger.error(f"Ошибка чтения файла-флага {FLAG_FILE}: {e}")
-		return FLAG_IDLE
+    try:
+        if os.path.exists(FLAG_FILE):
+            with open(FLAG_FILE, "r", encoding="utf-8") as f:
+                return f.read().strip().upper()
+        else:
+            write_flag(FLAG_IDLE)
+            return FLAG_IDLE
+    except Exception as e:
+        logger.error(f"Ошибка чтения файла-флага {FLAG_FILE}: {e}")
+        return FLAG_IDLE
 
 def write_flag(status):
-	try:
-		with open(FLAG_FILE, "w", encoding="utf-8") as f:
-			f.write(status)
-		logger.info(f"Статус рассылки изменен на {status}")
-		return True
-	except Exception as e:
-		logger.error(f"Ошибка записи в файл-флаг {FLAG_FILE}: {e}")
-		return False
+    try:
+        with open(FLAG_FILE, "w", encoding="utf-8") as f:
+            f.write(status)
+        logger.info(f"Статус рассылки изменен на {status}")
+        return True
+    except Exception as e:
+        logger.error(f"Ошибка записи в файл-флаг {FLAG_FILE}: {e}")
+        return False
 
 def read_usernames():
-	usernames = []
-	if not os.path.exists(USERNAMES_FILE):
-		logger.warning(f"Файл {USERNAMES_FILE} не найден. Возвращаю пустой список.")
-		return usernames
-	try:
-		with open(USERNAMES_FILE, "r", encoding="utf-8") as f:
-			for line in f:
-				s = line.strip()
-				if s:
-					usernames.append(s if s.startswith('@') else f"@{s}")
-	except Exception as e:
-		logger.error(f"Ошибка чтения файла username {USERNAMES_FILE}: {e}")
-	return usernames
-
+    usernames = []
+    if not os.path.exists(USERNAMES_FILE):
+        logger.warning(f"Файл {USERNAMES_FILE} не найден. Возвращаю пустой список.")
+        return usernames
+    try:
+        with open(USERNAMES_FILE, "r", encoding="utf-8") as f:
+            for line in f:
+                s = line.strip()
+                if s:
+                    usernames.append(s if s.startswith('@') else f"@{s}")
+    except Exception as e:
+        logger.error(f"Ошибка чтения файла username {USERNAMES_FILE}: {e}")
+    return usernames
 
 def read_message_data():
     message_data = None
@@ -380,7 +379,6 @@ def read_message_data():
         logger.error(f"Ошибка чтения файла сообщения {MESSAGE_DATA_FILE}: {e}")
     return message_data
 
-
 def update_total_stats(sent_count):
     current_count = 0
     try:
@@ -390,8 +388,7 @@ def update_total_stats(sent_count):
                 if content.isdigit():
                     current_count = int(content)
                 else:
-                    logger.warning(
-                        f"Файл статистики {STATS_FILE} содержит некорректное значение: '{content}'. Начинаем с 0.")
+                    logger.warning(f"Файл статистики {STATS_FILE} содержит некорректное значение: '{content}'. Начинаем с 0.")
         else:
             logger.info(f"Файл статистики {STATS_FILE} не найден, будет создан при первой записи.")
     except Exception as e:
@@ -405,7 +402,6 @@ def update_total_stats(sent_count):
     except Exception as e:
         logger.error(f"Ошибка записи в файл общей статистики {STATS_FILE}: {e}")
 
-
 def read_daily_stats():
     today_str = date.today().isoformat()
     if os.path.exists(DAILY_STATS_FILE):
@@ -415,13 +411,10 @@ def read_daily_stats():
             if isinstance(stats_data, dict) and stats_data.get("date") == today_str:
                 return stats_data.get("sent_today", 0)
         except json.JSONDecodeError:
-            logger.error(
-                f"Файл дневной статистики {DAILY_STATS_FILE} поврежден или имеет неверный формат. Сбрасываем счетчик на сегодня.")
+            logger.error(f"Файл дневной статистики {DAILY_STATS_FILE} поврежден или имеет неверный формат. Сбрасываем счетчик на сегодня.")
         except Exception as e:
-            logger.error(
-                f"Ошибка чтения файла дневной статистики {DAILY_STATS_FILE}: {e}. Сбрасываем счетчик на сегодня.")
+            logger.error(f"Ошибка чтения файла дневной статистики {DAILY_STATS_FILE}: {e}. Сбрасываем счетчик на сегодня.")
     return 0
-
 
 def update_daily_stats(sent_this_session_count):
     today_str = date.today().isoformat()
@@ -433,8 +426,7 @@ def update_daily_stats(sent_this_session_count):
             if isinstance(stats, dict) and stats.get("date") == today_str:
                 current_sent_today = stats.get("sent_today", 0)
             else:
-                logger.info(f"Дата в {DAILY_STATS_FILE} ({stats.get('date') if isinstance(stats, dict) else 'N/A'}) "
-                            f"не совпадает с сегодняшней ({today_str}) или не является словарем. Сбрасываю дневной счетчик.")
+                logger.info(f"Дата в {DAILY_STATS_FILE} ({stats.get('date') if isinstance(stats, dict) else 'N/A'}) не совпадает с сегодняшней ({today_str}) или не является словарем. Сбрасываю дневной счетчик.")
         except json.JSONDecodeError:
             logger.warning(f"Файл {DAILY_STATS_FILE} поврежден. Сбрасываю дневной счетчик.")
         except Exception as e:
@@ -449,7 +441,6 @@ def update_daily_stats(sent_this_session_count):
         logger.info(f"Дневная статистика обновлена: {sent_this_session_count} новых, всего сегодня: {new_sent_today}")
     except Exception as e:
         logger.error(f"Ошибка записи в файл дневной статистики {DAILY_STATS_FILE}: {e}")
-
 
 def resolve_media_path(media_path):
     """
@@ -766,6 +757,11 @@ async def send_messages_task(app_client: TelegramClient, app_state: AppState):
                     continue
 
                 try:
+                    # Ensure target_type is set
+                    if app_state.target_type is None:
+                        app_state.target_type = "usernames"  # Default
+                        logger.info("target_type встановлено за замовчуванням на 'usernames'")
+
                     # Check if we need to process chats again
                     if not os.path.exists(USERNAMES_FILE) or not os.path.exists("all_phones.txt"):
                         logger.info("Файли з юзернеймами або телефонами не знайдені, запускаємо збір нових даних...")
@@ -782,7 +778,10 @@ async def send_messages_task(app_client: TelegramClient, app_state: AppState):
                         await process_mailing("phones", "all_phones.txt")
                     else:
                         logger.error(f"Невідомий тип цільової розсилки: {app_state.target_type}")
-                        await client.send_message(BOT_ID, f"Невідомий тип цільової розсилки: {app_state.target_type}")
+                        try:
+                            await client.send_message(BOT_ID, f"Невідомий тип цільової розсилки: {app_state.target_type}")
+                        except Exception as e:
+                            logger.error(f"Не удалось отправить сообщение боту: {e}")
                         write_flag(FLAG_STOP)
                         await asyncio.sleep(5)
                         write_flag(FLAG_START)
@@ -794,10 +793,16 @@ async def send_messages_task(app_client: TelegramClient, app_state: AppState):
                     update_daily_stats(len(read_usernames()))
 
                     logger.info("Розсилка завершена, оновлюємо статистику")
-                    await client.send_message(BOT_ID, "Розсилка завершена, статистику оновлено")
+                    try:
+                        await client.send_message(BOT_ID, "Розсилка завершена, статистику оновлено")
+                    except Exception as e:
+                        logger.error(f"Не удалось отправить сообщение боту: {e}")
                 except Exception as e:
                     logger.error(f"Помилка під час розсилки: {e}")
-                    await client.send_message(BOT_ID, f"Помилка під час розсилки: {e}")
+                    try:
+                        await client.send_message(BOT_ID, f"Помилка під час розсилки: {e}")
+                    except Exception as send_e:
+                        logger.error(f"Не удалось отправить сообщение боту: {send_e}")
                 finally:
                     app_state.sending_active = False
                     app_state.consume_mailing_command()
@@ -816,6 +821,24 @@ async def send_messages_task(app_client: TelegramClient, app_state: AppState):
             logger.error(f"Помилка в задачі моніторингу: {e}")
             await asyncio.sleep(10)
 
+async def check_license():
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(LICENSE_CHECK_URL) as resp:
+                if resp.status == 200:
+                    data = await resp.json()
+                    if data.get("license_code") == EXPECTED_LICENSE_CODE:
+                        logger.info("Ліцензія підтверджена")
+                        return True
+                    else:
+                        logger.error("Ліцензія невірна")
+                        return False
+                else:
+                    logger.error(f"Помилка перевірки ліцензії: HTTP {resp.status}")
+                    return False
+    except Exception as e:
+        logger.error(f"Помилка при перевірці ліцензії: {e}")
+        return False
 
 async def main():
     # Initialize app state
@@ -826,16 +849,24 @@ async def main():
         logger.info("Клієнт успішно підключено, запускаємо основні задачі...")
         
         # Start the message sending task
-        await send_messages_task(client, client.app_state)
-
+        task = asyncio.create_task(send_messages_task(client, client.app_state))
+        
         logger.info("Основні задачі запущено, чекаємо повідомлень...")
         # Handle new messages (for commands)
-        await client.run_until_disconnected()
-
+        try:
+            await client.run_until_disconnected()
+        finally:
+            # Cancel the background task on shutdown
+            task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
 
 if __name__ == "__main__":
     try:
         asyncio.run(main())
     except Exception as e:
         logger.error(f"Критична помилка в основному циклі: {e}")
+        import traceback
         traceback.print_exc()

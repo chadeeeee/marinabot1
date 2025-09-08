@@ -4,11 +4,10 @@ import json
 import asyncio
 import logging
 import random
-import traceback
 import hashlib
 from datetime import date, datetime, time
-import pytz
 import aiohttp
+import pytz
 
 from telethon.sync import TelegramClient
 from telethon import events
@@ -75,7 +74,7 @@ class AppState:
     def __init__(self):
         self.bot_mailing_command_received = False
         self.sending_active = False
-        self.target_type = None
+        self.target_type = "usernames"  # Default
         self.target_file = None
         self.scheduled_mailing_active = True
         self.last_mailing_date = None
@@ -84,7 +83,7 @@ class AppState:
         self.bot_mailing_command_received = True
 
     def is_mailing_command_pending(self):
-        return self.bot_mailing_command_received
+        return self.bot_mailing_command_pending
 
     def consume_mailing_command(self):
         self.bot_mailing_command_received = False
@@ -92,7 +91,7 @@ class AppState:
     def reset_for_shutdown(self):
         self.bot_mailing_command_received = False
         self.sending_active = False
-        self.target_type = None
+        self.target_type = "usernames"  # Reset to default
         self.target_file = None
         logger.info("Флаги стану програми скинуті для завершення роботи.")
 
@@ -844,15 +843,12 @@ async def send_messages_task(app_client: TelegramClient, app_state: AppState):
     logger.info("Задача мониторинга файла-флага і рассилки запущена.")
     while True:
         try:
-            # Перевіряємо, чи потрібно запускати щоденну розсилку
+            # Check for scheduled mailing
             if should_start_daily_mailing(app_state):
                 logger.info("Настав час для щоденної розсилки (9:00 ранку по Києву)")
                 app_state.last_mailing_date = date.today()
-                
-                # Автоматично встановлюємо тип розсилки на юзернейми
-                app_state.target_type = "usernames"
+                app_state.target_type = "usernames"  # Default for scheduled
                 app_state.target_file = USERNAMES_FILE
-                
                 write_flag(FLAG_START)
                 await send_bot_notification("🕘 Автоматична розсилка розпочата о 9:00 ранку по Києву")
             
@@ -871,15 +867,10 @@ async def send_messages_task(app_client: TelegramClient, app_state: AppState):
                     continue
 
                 try:
-                    # Check if we need to process chats again
-                    if not os.path.exists(USERNAMES_FILE) or not os.path.exists("all_phones.txt"):
-                        logger.info("Файли з юзернеймами або телефонами не знайдені, запускаємо збір нових даних...")
-                        await send_bot_notification("⚠️ Файли з даними не знайдені, потрібен збір нових даних")
-                        write_flag(FLAG_STOP)
-                        await asyncio.sleep(5)
-                        write_flag(FLAG_START)
-                        await asyncio.sleep(5)
-                        continue
+                    # Ensure target_type is set
+                    if app_state.target_type is None:
+                        app_state.target_type = "usernames"
+                        logger.info("target_type встановлено за замовчуванням на 'usernames'")
 
                     # Main mailing logic
                     if app_state.target_type == "usernames":
@@ -888,21 +879,20 @@ async def send_messages_task(app_client: TelegramClient, app_state: AppState):
                         await process_mailing("phones", "all_phones.txt")
                     else:
                         logger.error(f"Невідомий тип цільової розсилки: {app_state.target_type}")
-                        await client.send_message(BOT_ID, f"Невідомий тип цільової розсилки: {app_state.target_type}")
-                        await send_bot_notification(f"❌ Невідомий тип розсилки: {app_state.target_type}")
+                        await send_bot_notification(f"❌ Невідомий тип цільової розсилки: {app_state.target_type}")
                         write_flag(FLAG_STOP)
                         await asyncio.sleep(5)
                         write_flag(FLAG_START)
                         await asyncio.sleep(5)
                         continue
 
-                    # Статистика тепер оновлюється всередині process_mailing тільки для успішних відправок
-                    logger.info("Розсилка завершена")
-                    await client.send_message(BOT_ID, "Розсилка завершена")
+                    # Update stats
+                    update_total_stats(len(read_usernames()))
+                    update_daily_stats(len(read_usernames()))
+                    await send_bot_notification(f"📊 Статистика оновлена: +{len(read_usernames())} успішних відправок")
                 except Exception as e:
                     logger.error(f"Помилка під час розсилки: {e}")
-                    await client.send_message(BOT_ID, f"Помилка під час розсилки: {e}")
-                    await send_bot_notification(f"❌ Критична помилка розсилки: {e}")
+                    await send_bot_notification(f"❌ Помилка під час розсилки: {e}")
                 finally:
                     app_state.sending_active = False
                     app_state.consume_mailing_command()
@@ -915,8 +905,7 @@ async def send_messages_task(app_client: TelegramClient, app_state: AppState):
                 write_flag(FLAG_DONE)
                 await asyncio.sleep(5)
             else:
-                logger.info(f"Статус флага: {flag_status}, чекаємо...")
-                await asyncio.sleep(30)  # Перевіряємо кожні 30 секунд
+                await asyncio.sleep(10)
         except Exception as e:
             logger.error(f"Помилка в задачі моніторингу: {e}")
             await asyncio.sleep(10)
