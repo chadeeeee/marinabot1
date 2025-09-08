@@ -41,3 +41,6 @@ cd crypto_always
 docker build -t bot15 .
 docker run -d --name bot15 -p 3248:80 bot15
 cd ..
+
+
+
