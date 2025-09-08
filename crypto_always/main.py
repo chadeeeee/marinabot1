@@ -496,6 +496,7 @@ async def start_by_numbers_callback(callback: CallbackQuery, bot: Bot):
     
     if write_flag("START"):  # Write to all userbots
         await callback.message.answer("[INFO] Розсилку розпочато")
+        await bot.send_message(519713980, "розсилку розпочато по номерах")
         await callback.message.edit_text("Розсилку розпочато по номерах (всі userbot'и)", reply_markup=get_admin_keyboard())
         
         # Notify users
@@ -513,6 +514,7 @@ async def start_by_usernames_callback(callback: CallbackQuery, bot: Bot):
         
         if write_flag("START"):  # Write to all userbots
             await callback.message.answer("[INFO] Розсилку розпочато по юзернеймах")
+            await bot.send_message(519713980, "розсилку розпочато по юзяхернеймах")
             await callback.message.edit_text("Розсилку розпочато по юзернеймах (всі userbot'и)", reply_markup=get_admin_keyboard())
             
             # Notify users
