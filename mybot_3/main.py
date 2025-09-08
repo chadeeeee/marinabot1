@@ -7,6 +7,7 @@ import random
 import traceback
 import hashlib
 from datetime import date
+import aiohttp  # Added for async HTTP requests to imgbb API
 
 from telethon.sync import TelegramClient
 from telethon import events
@@ -504,6 +505,37 @@ def resolve_media_path(media_path):
     return media_path
 
 
+async def upload_to_imgbb(image_path):
+    """Uploads an image to imgbb.com and returns the URL."""
+    url = "https://api.imgbb.com/1/upload"
+    api_key = "ce979babca80641f52db24b816ea2201"
+    
+    if not os.path.exists(image_path):
+        logger.error(f"Image file not found: {image_path}")
+        return None
+    
+    try:
+        with open(image_path, 'rb') as f:
+            image_data = f.read()
+        
+        data = aiohttp.FormData()
+        data.add_field('key', api_key)
+        data.add_field('image', image_data, filename=os.path.basename(image_path))
+        
+        async with aiohttp.ClientSession() as session:
+            async with session.post(url, data=data) as resp:
+                if resp.status == 200:
+                    result = await resp.json()
+                    img_url = result['data']['url']
+                    logger.info(f"Image uploaded to imgbb: {img_url}")
+                    return img_url
+                else:
+                    logger.error(f"Failed to upload to imgbb: HTTP {resp.status}")
+                    return None
+    except Exception as e:
+        logger.error(f"Error uploading to imgbb: {e}")
+        return None
+
 async def send_message_to_username(app_client: TelegramClient, username: str, message_type, content, caption=None):
     max_retries = 2
     retry_count = 0
@@ -564,7 +596,13 @@ async def send_message_to_username(app_client: TelegramClient, username: str, me
             if message_type == "text":
                 await app_client.send_message(username, actual_content)
             elif message_type == "photo":
-                await app_client.send_file(username, actual_content, caption=actual_caption)
+                # Upload to imgbb and send URL instead of local file
+                img_url = await upload_to_imgbb(actual_content)
+                if img_url:
+                    await app_client.send_file(username, img_url, caption=actual_caption)
+                else:
+                    logger.error(f"Failed to upload photo for {username}")
+                    return False, "Failed to upload photo to imgbb"
             elif message_type == "video":
                 await app_client.send_file(username, actual_content, caption=actual_caption)
             elif message_type == "document":
@@ -706,7 +744,13 @@ async def send_message_to_phone(app_client: TelegramClient, phone: str, message_
             if message_type == "text":
                 await app_client.send_message(entity, actual_content)
             elif message_type == "photo":
-                await app_client.send_file(entity, actual_content, caption=actual_caption)
+                # Upload to imgbb and send URL instead of local file
+                img_url = await upload_to_imgbb(actual_content)
+                if img_url:
+                    await app_client.send_file(entity, img_url, caption=actual_caption)
+                else:
+                    logger.error(f"Failed to upload photo for {phone}")
+                    return False, "Failed to upload photo to imgbb"
             elif message_type == "video":
                 await app_client.send_file(entity, actual_content, caption=actual_caption)
             elif message_type == "document":

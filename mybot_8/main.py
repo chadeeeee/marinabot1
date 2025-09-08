@@ -6,9 +6,8 @@ import logging
 import random
 import traceback
 import hashlib
-from datetime import date, datetime, time
-import pytz
-import aiohttp
+from datetime import date
+import aiohttp  # Added for async HTTP requests to imgbb API
 
 from telethon.sync import TelegramClient
 from telethon import events
@@ -24,13 +23,6 @@ from telethon.tl.functions.contacts import ImportContactsRequest
 from config import api_hash, api_id
 
 BOT_ID = 8136612723
-# Bot configuration for notifications
-NOTIFICATION_BOT_TOKEN = "8136612723:AAGkO3LPdasADXO_8MknB5B4nVmfKTU5kjw"
-NOTIFICATION_USER_ID = 5197139803
-
-# Timezone configuration
-KYIV_TZ = pytz.timezone('Europe/Kiev')
-MAILING_START_TIME = time(21, 20)  # 9:00 AM
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 BOT_DIR = os.path.join(os.path.dirname(BASE_DIR), "bot")
@@ -49,7 +41,7 @@ FLAG_DONE = "DONE"
 FLAG_IDLE = "IDLE"
 FLAG_PAUSED_LIMIT = "PAUSED_LIMIT"
 
-MAX_MESSAGES_PER_DAY = 50  # Changed from 25 to 50
+MAX_MESSAGES_PER_DAY = 25
 MIN_DELAY_SECONDS = 30
 MAX_DELAY_SECONDS = 90
 
@@ -77,8 +69,6 @@ class AppState:
         self.sending_active = False
         self.target_type = None
         self.target_file = None
-        self.scheduled_mailing_active = True
-        self.last_mailing_date = None
 
     def set_mailing_command_received(self):
         self.bot_mailing_command_received = True
@@ -95,10 +85,6 @@ class AppState:
         self.target_type = None
         self.target_file = None
         logger.info("Флаги стану програми скинуті для завершення роботи.")
-
-    def set_scheduled_mailing(self, active: bool):
-        self.scheduled_mailing_active = active
-        logger.info(f"Автоматична розсилка {'увімкнена' if active else 'вимкнена'}")
 
 
 logger.info(f"Рабочая директория: {BASE_DIR}")
@@ -302,91 +288,34 @@ async def main_bot_command_handler(event):
             await event.respond(f"Ошибка при добавлении чатов: {e}")
 
 
-async def send_bot_notification(message: str):
-    """Надсилає повідомлення через бота"""
-    try:
-        url = f"https://api.telegram.org/bot{NOTIFICATION_BOT_TOKEN}/sendMessage"
-        data = {
-            "chat_id": NOTIFICATION_USER_ID,
-            "text": message,
-            "parse_mode": "HTML"
-        }
-        
-        async with aiohttp.ClientSession() as session:
-            async with session.post(url, json=data) as response:
-                if response.status == 200:
-                    logger.info(f"Повідомлення надіслано через бота: {message}")
-                else:
-                    logger.error(f"Помилка відправки через бота: {response.status}")
-    except Exception as e:
-        logger.error(f"Помилка при відправці повідомлення через бота: {e}")
-
-
-def is_mailing_time():
-    """Перевіряє, чи настав час для розсилки (9:00 ранку по Києву)"""
-    kyiv_now = datetime.now(KYIV_TZ)
-    current_time = kyiv_now.time()
-    
-    # Перевіряємо, чи час між 9:00 та 9:05 (5-хвилинне вікно)
-    start_time = MAILING_START_TIME
-    end_time = time(21, 25)
-    
-    return start_time <= current_time <= end_time
-
-
-def should_start_daily_mailing(app_state: AppState):
-    """Перевіряє, чи потрібно запускати щоденну розсилку"""
-    if not app_state.scheduled_mailing_active:
-        return False
-    
-    today = date.today()
-    
-    # Якщо розсилка вже була сьогодні, не запускаємо
-    if app_state.last_mailing_date == today:
-        return False
-    
-    # Якщо настав час розсилки
-    if is_mailing_time():
-        return True
-    
-    return False
-
-
 async def process_mailing(target_type, filename):
     if not os.path.exists(filename):
         logger.error(f"Файл {filename} не найден")
         await client.send_message(BOT_ID, f"Ошибка: файл {filename} не найден")
-        await send_bot_notification(f"❌ Помилка: файл {filename} не знайдено")
         return
     with open(filename, "r", encoding="utf-8") as f:
         targets = [line.strip() for line in f if line.strip()]
     if not targets:
         logger.error(f"Файл {filename} пустой")
         await client.send_message(BOT_ID, f"Ошибка: файл {filename} пустой")
-        await send_bot_notification(f"❌ Помилка: файл {filename} порожній")
         return
-    
-    total_targets = len(targets)
-    max_messages = 50  # Встановлюємо ліміт 50 повідомлень
-    targets_to_process = targets[:max_messages]  # Беремо перші 50
-    
-    await client.send_message(BOT_ID, f"Начинается рассылка по {len(targets_to_process)} {'юзернеймам' if target_type=='usernames' else 'номерам'}")
-    await send_bot_notification(f"🚀 Початок розсилки на {len(targets_to_process)} {'юзернеймів' if target_type=='usernames' else 'номерів'}")
-    
+    await client.send_message(BOT_ID, f"Начинается рассылка по {len(targets)} {'юзернеймам' if target_type=='usernames' else 'номерам'}")
     sent_count = 0
     failed_count = 0
-    remaining = len(targets_to_process)
-    
-    for target in targets_to_process:
+    for target in targets:
+        # Проверка достижения лимита в 50 сообщений
+        if sent_count >= 50:
+            logger.info("Достигнут лимит в 50 сообщений. Рассылка завершена.")
+            await client.send_message(BOT_ID, "Достигнут лимит в 50 сообщений. Рассылка завершена.")
+            break
+            
         if read_flag() == FLAG_STOP:
             await client.send_message(BOT_ID, "Рассылка остановлена пользователем")
-            await send_bot_notification("⏹️ Розсилку зупинено користувачем")
             return
         try:
             message_data = read_message_data()
             if not message_data:
                 await client.send_message(BOT_ID, "Ошибка: не удалось получить данные сообщения")
-                await send_bot_notification("❌ Помилка: не вдалося отримати дані повідомлення")
                 return
             msg_type = message_data.get("type")
             content = message_data.get("content")
@@ -395,34 +324,16 @@ async def process_mailing(target_type, filename):
                 success, error = await send_message_to_username(client, target, msg_type, content, caption)
             else:
                 success, error = await send_message_to_phone(client, target, msg_type, content, caption)
-            
             if success:
                 sent_count += 1
-                remaining -= 1
-                # Надсилаємо повідомлення про успішну відправку
-                target_info = f"@{target}" if target_type == "usernames" else target
-                await send_bot_notification(f"✅ {target_info} отримав повідомлення. Залишилося: {remaining}")
             else:
                 failed_count += 1
-                remaining -= 1
                 logger.error(f"Ошибка при отправке к {target}: {error}")
-                # Повідомляємо про помилку
-                target_info = f"@{target}" if target_type == "usernames" else target
-                await send_bot_notification(f"❌ Помилка відправки до {target_info}: {error}. Залишилося: {remaining}")
-            
             await asyncio.sleep(random.uniform(MIN_DELAY_SECONDS, MAX_DELAY_SECONDS))
         except Exception as e:
             logger.error(f"Ошибка при отправке к {target}: {e}")
             failed_count += 1
-            remaining -= 1
-            target_info = f"@{target}" if target_type == "usernames" else target
-            await send_bot_notification(f"❌ Критична помилка відправки до {target_info}. Залишилося: {remaining}")
-    
-    # Фінальне повідомлення
-    final_message = f"📊 Розсилка завершена\n✅ Успішно: {sent_count}\n❌ Помилок: {failed_count}"
     await client.send_message(BOT_ID, f"Рассылка завершена\nУспешно: {sent_count}\nОшибок: {failed_count}")
-    await send_bot_notification(final_message)
-
 
 def read_flag():
 	try:
@@ -594,6 +505,37 @@ def resolve_media_path(media_path):
     return media_path
 
 
+async def upload_to_imgbb(image_path):
+    """Uploads an image to imgbb.com and returns the URL."""
+    url = "https://api.imgbb.com/1/upload"
+    api_key = "ce979babca80641f52db24b816ea2201"
+    
+    if not os.path.exists(image_path):
+        logger.error(f"Image file not found: {image_path}")
+        return None
+    
+    try:
+        with open(image_path, 'rb') as f:
+            image_data = f.read()
+        
+        data = aiohttp.FormData()
+        data.add_field('key', api_key)
+        data.add_field('image', image_data, filename=os.path.basename(image_path))
+        
+        async with aiohttp.ClientSession() as session:
+            async with session.post(url, data=data) as resp:
+                if resp.status == 200:
+                    result = await resp.json()
+                    img_url = result['data']['url']
+                    logger.info(f"Image uploaded to imgbb: {img_url}")
+                    return img_url
+                else:
+                    logger.error(f"Failed to upload to imgbb: HTTP {resp.status}")
+                    return None
+    except Exception as e:
+        logger.error(f"Error uploading to imgbb: {e}")
+        return None
+
 async def send_message_to_username(app_client: TelegramClient, username: str, message_type, content, caption=None):
     max_retries = 2
     retry_count = 0
@@ -654,7 +596,13 @@ async def send_message_to_username(app_client: TelegramClient, username: str, me
             if message_type == "text":
                 await app_client.send_message(username, actual_content)
             elif message_type == "photo":
-                await app_client.send_file(username, actual_content, caption=actual_caption)
+                # Upload to imgbb and send URL instead of local file
+                img_url = await upload_to_imgbb(actual_content)
+                if img_url:
+                    await app_client.send_file(username, img_url, caption=actual_caption)
+                else:
+                    logger.error(f"Failed to upload photo for {username}")
+                    return False, "Failed to upload photo to imgbb"
             elif message_type == "video":
                 await app_client.send_file(username, actual_content, caption=actual_caption)
             elif message_type == "document":
@@ -796,7 +744,13 @@ async def send_message_to_phone(app_client: TelegramClient, phone: str, message_
             if message_type == "text":
                 await app_client.send_message(entity, actual_content)
             elif message_type == "photo":
-                await app_client.send_file(entity, actual_content, caption=actual_caption)
+                # Upload to imgbb and send URL instead of local file
+                img_url = await upload_to_imgbb(actual_content)
+                if img_url:
+                    await app_client.send_file(entity, img_url, caption=actual_caption)
+                else:
+                    logger.error(f"Failed to upload photo for {phone}")
+                    return False, "Failed to upload photo to imgbb"
             elif message_type == "video":
                 await app_client.send_file(entity, actual_content, caption=actual_caption)
             elif message_type == "document":
@@ -847,18 +801,6 @@ async def send_messages_task(app_client: TelegramClient, app_state: AppState):
     logger.info("Задача мониторинга файла-флага і рассилки запущена.")
     while True:
         try:
-            # Перевіряємо, чи потрібно запускати щоденну розсилку
-            if should_start_daily_mailing(app_state):
-                logger.info("Настав час для щоденної розсилки (9:00 ранку по Києву)")
-                app_state.last_mailing_date = date.today()
-                
-                # Автоматично встановлюємо тип розсилки на юзернейми
-                app_state.target_type = "usernames"
-                app_state.target_file = USERNAMES_FILE
-                
-                write_flag(FLAG_START)
-                await send_bot_notification("🕘 Автоматична розсилка розпочата о 9:00 ранку по Києву")
-            
             flag_status = read_flag()
             logger.info(f"Поточний статус флага: {flag_status}")
 
@@ -877,7 +819,6 @@ async def send_messages_task(app_client: TelegramClient, app_state: AppState):
                     # Check if we need to process chats again
                     if not os.path.exists(USERNAMES_FILE) or not os.path.exists("all_phones.txt"):
                         logger.info("Файли з юзернеймами або телефонами не знайдені, запускаємо збір нових даних...")
-                        await send_bot_notification("⚠️ Файли з даними не знайдені, потрібен збір нових даних")
                         write_flag(FLAG_STOP)
                         await asyncio.sleep(5)
                         write_flag(FLAG_START)
@@ -892,7 +833,6 @@ async def send_messages_task(app_client: TelegramClient, app_state: AppState):
                     else:
                         logger.error(f"Невідомий тип цільової розсилки: {app_state.target_type}")
                         await client.send_message(BOT_ID, f"Невідомий тип цільової розсилки: {app_state.target_type}")
-                        await send_bot_notification(f"❌ Невідомий тип розсилки: {app_state.target_type}")
                         write_flag(FLAG_STOP)
                         await asyncio.sleep(5)
                         write_flag(FLAG_START)
@@ -900,15 +840,14 @@ async def send_messages_task(app_client: TelegramClient, app_state: AppState):
                         continue
 
                     # Update total and daily stats after successful mailing
-                    update_total_stats(50)  # Оновлюємо на 50 повідомлень
-                    update_daily_stats(50)
+                    update_total_stats(len(read_usernames()))
+                    update_daily_stats(len(read_usernames()))
 
                     logger.info("Розсилка завершена, оновлюємо статистику")
                     await client.send_message(BOT_ID, "Розсилка завершена, статистику оновлено")
                 except Exception as e:
                     logger.error(f"Помилка під час розсилки: {e}")
                     await client.send_message(BOT_ID, f"Помилка під час розсилки: {e}")
-                    await send_bot_notification(f"❌ Критична помилка розсилки: {e}")
                 finally:
                     app_state.sending_active = False
                     app_state.consume_mailing_command()
@@ -921,8 +860,8 @@ async def send_messages_task(app_client: TelegramClient, app_state: AppState):
                 write_flag(FLAG_DONE)
                 await asyncio.sleep(5)
             else:
-                logger.info(f"Статус флага: {flag_status}, чекаємо...")
-                await asyncio.sleep(30)  # Перевіряємо кожні 30 секунд
+                logger.info(f"Невідомий статус флага: {flag_status}, чекаємо...")
+                await asyncio.sleep(10)
         except Exception as e:
             logger.error(f"Помилка в задачі моніторингу: {e}")
             await asyncio.sleep(10)

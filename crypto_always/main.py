@@ -601,6 +601,57 @@ async def process_message_content(message: Message, state: FSMContext, bot: Bot)
         file_ext = ".jpg"
         message_data["caption"] = message.caption
         logging.info(f"Отримано фото з file_id: {file_id}")
+        
+        # Download photo temporarily
+        temp_path = os.path.join(MEDIA_DIR, f"temp_{uuid.uuid4()}{file_ext}")
+        try:
+            file_info = await bot.get_file(file_id)
+            await bot.download_file(file_path=file_info.file_path, destination=temp_path)
+            logging.info(f"Фото тимчасово збережено: {temp_path}")
+        except Exception as e:
+            logging.error(f"Помилка при завантаженні фото: {e}")
+            await message.reply("Помилка при завантаженні фото")
+            await state.clear()
+            return
+        
+        # Upload to imgbb.com
+        imgbb_url = "https://api.imgbb.com/1/upload"
+        api_key = "ce979babca80641f52db24b816ea2201"
+        try:
+            async with aiohttp.ClientSession() as session:
+                with open(temp_path, 'rb') as f:
+                    data = aiohttp.FormData()
+                    data.add_field('key', api_key)
+                    data.add_field('image', f, filename=f"photo{file_ext}")
+                    async with session.post(imgbb_url, data=data) as response:
+                        if response.status == 200:
+                            result = await response.json()
+                            if result.get('success'):
+                                image_url = result['data']['url']
+                                message_data["content"] = image_url
+                                logging.info(f"Фото завантажено на imgbb: {image_url}")
+                                await message.reply(f"Фото завантажено на imgbb: {image_url}")
+                            else:
+                                logging.error(f"Помилка imgbb API: {result}")
+                                await message.reply("Помилка при завантаженні на imgbb")
+                                await state.clear()
+                                return
+                        else:
+                            logging.error(f"HTTP помилка imgbb: {response.status}")
+                            await message.reply("Помилка при завантаженні на imgbb")
+                            await state.clear()
+                            return
+        except Exception as e:
+            logging.error(f"Помилка при завантаженні на imgbb: {e}")
+            await message.reply("Помилка при завантаженні на imgbb")
+            await state.clear()
+            return
+        finally:
+            # Clean up temporary file
+            if os.path.exists(temp_path):
+                os.remove(temp_path)
+                logging.info(f"Тимчасовий файл видалено: {temp_path}")
+        
     elif message.video:
         message_data["type"] = "video"
         file_id = message.video.file_id
