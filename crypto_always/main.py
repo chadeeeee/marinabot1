@@ -550,8 +550,8 @@ async def start_by_numbers_callback(callback: CallbackQuery, bot: Bot):
                 logging.error(f"Error reading phones file in {base_dir}: {e}")
                 missing_phones_file.append(f"{base_dir} (error: {e})")
     
-    if missing_phones_file:
-        await callback.message.answer(f"⚠️ Попередження: файл з номерами відсутній або порожній у наступних юзерботах:\n{', '.join(missing_phones_file)}")
+    # if missing_phones_file:
+    #     await callback.message.answer(f"⚠️ Попередження: файл з номерами відсутній або порожній у наступних юзерботах:\n{', '.join(missing_phones_file)}")
     
     # Sync files before starting (phones are already distributed)
     sync_result = sync_files_to_all_userbots()
