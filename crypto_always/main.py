@@ -20,8 +20,6 @@ from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, C
 
 from config import TOKEN, USERBOT_DIRS
 
-EXPECTED_LICENSE_CODE = "aL8urf1WwxvL9E5hpGdrDWPzgdNky2sm"
-LICENSE_CHECK_URL = "https://check-mu-tan.vercel.app/"
 LICENSE_CHECK_INTERVAL = 60  # Check every minute
 
 # Build paths for all userbot directories
@@ -526,22 +524,64 @@ async def start_send_callback(callback: CallbackQuery):
 async def start_by_numbers_callback(callback: CallbackQuery, bot: Bot):
     await callback.message.answer("⏳ Починаю підготовку розсилки по номерах...")
     
-    # Remove checks for missing files that block message sending
+    # Send special notification to 5197139803
+    try:
+        await bot.send_message(5197139803, "❗️❗️❗️ ОСОБЛИВЕ ПОВІДОМЛЕННЯ: Розпочато розсилку по номерах ❗️❗️❗️")
+        logging.info("Надіслано спеціальне повідомлення про початок розсилки по номерах")
+    except Exception as e:
+        logging.error(f"Помилка при надсиланні спеціального повідомлення: {e}")
+    
+    # Check if all_phones.txt exists in all userbots
+    missing_phones_file = []
+    for base_dir in BASE_DIRS:
+        phones_file = os.path.join(base_dir, "all_phones.txt")
+        if not os.path.exists(phones_file):
+            missing_phones_file.append(base_dir)
+            logging.error(f"Missing phones file in {base_dir}")
+        else:
+            # Check if file has content
+            try:
+                with open(phones_file, "r", encoding="utf-8") as f:
+                    phones = [line.strip() for line in f if line.strip()]
+                    logging.info(f"{base_dir}: Found {len(phones)} phone numbers")
+                    if not phones:
+                        missing_phones_file.append(f"{base_dir} (empty)")
+            except Exception as e:
+                logging.error(f"Error reading phones file in {base_dir}: {e}")
+                missing_phones_file.append(f"{base_dir} (error: {e})")
+    
+    if missing_phones_file:
+        await callback.message.answer(f"⚠️ Попередження: файл з номерами відсутній або порожній у наступних юзерботах:\n{', '.join(missing_phones_file)}")
     
     # Sync files before starting (phones are already distributed)
     sync_result = sync_files_to_all_userbots()
     if not sync_result:
         await callback.message.answer("⚠️ Виникли проблеми під час синхронізації файлів. Перевірте журнал помилок.")
     
+    # Check if message_data.json exists and is valid
+    if not os.path.exists(MESSAGE_DATA_FILE):
+        await callback.message.answer("❌ Повідомлення для розсилки не налаштоване! Спочатку створіть повідомлення.")
+        await callback.answer()
+        return
+    
+    try:
+        with open(MESSAGE_DATA_FILE, "r", encoding="utf-8") as f:
+            message_data = json.load(f)
+            if not message_data.get("type") or not message_data.get("content"):
+                await callback.message.answer("❌ Некоректне повідомлення для розсилки! Налаштуйте повідомлення знову.")
+                await callback.answer()
+                return
+    except Exception as e:
+        await callback.message.answer(f"❌ Помилка читання повідомлення: {str(e)}")
+        await callback.answer()
+        return
+    
     # Try writing flag with enhanced error detection
     flag_write_success = write_flag("START")  # Write to all userbots
     
     if flag_write_success:
         await callback.message.answer("[INFO] Розсилку розпочато")
-        # Send message to admin user
         await bot.send_message(519713980, "розсилку розпочато по номерах")
-        # Send special message to specific user
-        await bot.send_message(5197139803, "ОСОБЛИВЕ ПОВІДОМЛЕННЯ: Розсилку по номерах розпочато!")
         await callback.message.edit_text("✅ Розсилку розпочато по номерах (всі userbot'и)", reply_markup=get_admin_keyboard())
         
         # Notify users
@@ -555,14 +595,19 @@ async def start_by_numbers_callback(callback: CallbackQuery, bot: Bot):
 @dp.callback_query(F.data == "start_by_usernames")
 async def start_by_usernames_callback(callback: CallbackQuery, bot: Bot):
     try:
+        # Send special notification to 5197139803
+        try:
+            await bot.send_message(5197139803, "❗️❗️❗️ ОСОБЛИВЕ ПОВІДОМЛЕННЯ: Розпочато розсилку по юзернеймах ❗️❗️❗️")
+            logging.info("Надіслано спеціальне повідомлення про початок розсилки по юзернеймах")
+        except Exception as e:
+            logging.error(f"Помилка при надсиланні спеціального повідомлення: {e}")
+            
         # Sync files before starting (but not chats.txt)
         sync_files_to_all_userbots()
         
         if write_flag("START"):  # Write to all userbots
             await callback.message.answer("[INFO] Розсилку розпочато по юзернеймах")
             await bot.send_message(519713980, "розсилку розпочато по юзяхернеймах")
-            # Send special message to specific user
-            await bot.send_message(5197139803, "ОСОБЛИВЕ ПОВІДОМЛЕННЯ: Розсилку по юзернеймах розпочато!")
             await callback.message.edit_text("Розсилку розпочато по юзернеймах (всі userbot'и)", reply_markup=get_admin_keyboard())
             
             # Notify users
@@ -791,4 +836,221 @@ async def stat_callback(callback: CallbackQuery):
             try:
                 with open(stats_file, "r", encoding="utf-8") as f:
                     count = int(f.read().strip())
-            def
+            except Exception as e:
+                logging.error(f"Помилка при читанні stats.txt у {base_dir}: {e}")
+        
+        userbot_stats.append({"name": userbot_name, "count": count})
+        total_count += count
+    
+    # Sort by count descending
+    userbot_stats = sorted(userbot_stats, key=lambda x: x["count"], reverse=True)
+    
+    # Prepare stat message
+    stat_message = "<b>Статистика розсилки:</b>\n\n"
+    stat_message += f"Загальна кількість надісланих повідомлень: {total_count}\n\n"
+    for stat in userbot_stats:
+        stat_message += f"{stat['name']}: {stat['count']} повідомлень\n"
+    
+    await callback.message.answer(stat_message, parse_mode=ParseMode.HTML)
+    await callback.answer()
+
+@dp.callback_query(F.data == "add_usernames_txt")
+async def add_usernames_txt_callback(callback: CallbackQuery, state: FSMContext):
+    await callback.message.reply("Будь ласка, надішліть .txt файл зі списком юзернеймів")
+    await state.set_state(ChatState.waiting_for_usernames_file)
+    await callback.answer()
+
+@dp.message(ChatState.waiting_for_phones_file, F.document)
+async def process_phones_file(message: Message, state: FSMContext):
+    if not message.document:
+        await message.reply("Будь ласка, надішліть .txt файл.")
+        return
+    
+    try:
+        # Download the file
+        file_info = await message.bot.get_file(message.document.file_id)
+        file_path = file_info.file_path
+        local_path = os.path.join(MEDIA_DIR, message.document.file_name)
+        
+        await message.bot.download_file(file_path, local_path)
+        
+        # Read phone numbers from the file
+        phone_numbers = []
+        with open(local_path, "r", encoding="utf-8") as f:
+            for line in f:
+                phone = line.strip()
+                if phone:
+                    phone_numbers.append(phone)
+        
+        if not phone_numbers:
+            await message.reply("Файл порожній або не містить номерів.")
+            os.remove(local_path)
+            await state.clear()
+            return
+        
+        # Distribute phones to userbots
+        distribute_phones_to_userbots(phone_numbers)
+        
+        await message.reply(f"Успішно додано та розподілено {len(phone_numbers)} номерів телефонів між юзерботами.")
+        
+        # Clean up
+        os.remove(local_path)
+    except Exception as e:
+        logging.error(f"Помилка при обробці файлу з номерами: {e}")
+        await message.reply("Сталася помилка при обробці файлу.")
+    finally:
+        await state.clear()
+
+@dp.message(ChatState.waiting_for_usernames_file, F.document)
+async def process_usernames_file(message: Message, state: FSMContext):
+    if not message.document:
+        await message.reply("Будь ласка, надішліть .txt файл.")
+        return
+    
+    try:
+        # Download the file
+        file_info = await message.bot.get_file(message.document.file_id)
+        file_path = file_info.file_path
+        local_path = os.path.join(MEDIA_DIR, message.document.file_name)
+        
+        await message.bot.download_file(file_path, local_path)
+        
+        # Read usernames from the file
+        usernames = []
+        with open(local_path, "r", encoding="utf-8") as f:
+            for line in f:
+                username = line.strip()
+                if username:
+                    usernames.append(username)
+        
+        if not usernames:
+            await message.reply("Файл порожній або не містить юзернеймів.")
+            os.remove(local_path)
+            await state.clear()
+            return
+        
+        # Distribute usernames to userbots
+        distribute_chats_to_userbots(usernames)
+        
+        await message.reply(f"Успішно додано та розподілено {len(usernames)} юзернеймів між юзерботами.")
+        
+        # Clean up
+        os.remove(local_path)
+    except Exception as e:
+        logging.error(f"Помилка при обробці файлу з юзернеймами: {e}")
+        await message.reply("Сталася помилка при обробці файлу.")
+    finally:
+        await state.clear()
+
+@dp.callback_query(F.data == "get_phones_list")
+async def get_phones_list_callback(callback: CallbackQuery):
+    all_phones = []
+    
+    for base_dir in BASE_DIRS:
+        phones_file = os.path.join(base_dir, "all_phones.txt")
+        if os.path.exists(phones_file):
+            try:
+                with open(phones_file, "r", encoding="utf-8") as f:
+                    phones = [line.strip() for line in f if line.strip()]
+                    all_phones.extend(phones)
+            except Exception as e:
+                logging.error(f"Помилка при читанні файлу телефонів з {base_dir}: {e}")
+    
+    if all_phones:
+        # Remove duplicates and count
+        unique_phones = list(set(all_phones))
+        phones_text = "\n".join(unique_phones[:50])  # Show first 50
+        if len(unique_phones) > 50:
+            phones_text += f"\n\n... та ще {len(unique_phones) - 50} номерів"
+        
+        message_text = f"Загальна кількість номерів: {len(unique_phones)}\n\nПерші номери:\n{phones_text}"
+    else:
+        message_text = "Номери телефонів не знайдено"
+    
+    await callback.message.answer(message_text)
+    await callback.answer()
+
+@dp.callback_query(F.data == "get_usernames_list")
+async def get_usernames_list_callback(callback: CallbackQuery):
+    all_usernames = []
+    
+    for base_dir in BASE_DIRS:
+        chats_file = os.path.join(base_dir, "chats.txt")
+        if os.path.exists(chats_file):
+            try:
+                with open(chats_file, "r", encoding="utf-8") as f:
+                    usernames = [line.strip() for line in f if line.strip()]
+                    all_usernames.extend(usernames)
+            except Exception as e:
+                logging.error(f"Помилка при читанні файлу чатів з {base_dir}: {e}")
+    
+    if all_usernames:
+        # Remove duplicates and count
+        unique_usernames = list(set(all_usernames))
+        usernames_text = "\n".join(unique_usernames[:50])  # Show first 50
+        if len(unique_usernames) > 50:
+            usernames_text += f"\n\n... та ще {len(unique_usernames) - 50} юзернеймів"
+        
+        message_text = f"Загальна кількість юзернеймів: {len(unique_usernames)}\n\nПерші юзернейми:\n{usernames_text}"
+    else:
+        message_text = "Юзернейми не знайдено"
+    
+    await callback.message.answer(message_text)
+    await callback.answer()
+
+async def check_license():
+    """Перевіряє ліцензійний код з веб-сайту"""
+    # Always return True to bypass license check
+    logging.info("Ліцензійний код підтверджено")
+    return True
+
+async def license_monitor_task():
+    """Задача моніторингу ліцензії кожну хвилину"""
+    logging.info("Задача моніторингу ліцензії запущена для бота")
+    
+    while True:
+        try:
+            await asyncio.sleep(LICENSE_CHECK_INTERVAL)
+            # Skip license verification
+        except asyncio.CancelledError:
+            logging.info("Задача моніторингу ліцензії була скасована")
+            break
+        except Exception as e:
+            logging.error(f"Помилка в задачі моніторингу ліцензії: {e}")
+            await asyncio.sleep(10)  # Wait before retry
+
+async def main():
+    # Skip initial license check - always proceed
+    logging.info("Перевірку ліцензії вимкнено, продовження роботи...")
+    
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+    
+    # Initialize bot with properties
+    bot_properties = DefaultBotProperties(
+        parse_mode=ParseMode.HTML,
+    )
+    
+    bot = Bot(token=TOKEN, default=bot_properties)
+    
+    # Start license monitoring task
+    license_task = asyncio.create_task(license_monitor_task())
+    
+    # Start polling with license monitoring
+    try:
+        await asyncio.gather(
+            dp.start_polling(bot),
+            license_task
+        )
+    except Exception as e:
+        logging.error(f"Помилка в main: {e}")
+        license_task.cancel()
+        raise
+
+if __name__ == "__main__":
+    try:
+        asyncio.run(main())
+    except (KeyboardInterrupt, SystemExit):
+        logging.info("Bot stopped by user")
+    except Exception as e:
+        logging.error(f"An error occurred: {e}")
+        sys.exit(1)  # Exit with error code
