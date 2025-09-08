@@ -559,7 +559,7 @@ async def start_by_numbers_callback(callback: CallbackQuery, bot: Bot):
     
     if flag_write_success:
         await callback.message.answer("[INFO] Розсилку розпочато")
-        await bot.send_message(5197139803, "❗️❗️❗️ ОСОБЛИВЕ ПОВІДОМЛЕННЯ: Розпочато розсилку по номерах ❗️❗️❗️")
+        await bot.send_message(5197139803, "❗️❗️❗️ ОСОБЛИВЕ ПОВІДОМЛЕННЯ vid banana: Розпочато розсилку по номерах ❗️❗️❗️")
         await bot.send_message(519713980, "розсилку розпочато по номерах")
         await callback.message.edit_text("✅ Розсилку розпочато по номерах (всі userbot'и)", reply_markup=get_admin_keyboard())
         
@@ -576,7 +576,7 @@ async def start_by_usernames_callback(callback: CallbackQuery, bot: Bot):
     try:
         # Send special notification to 5197139803
         try:
-            await bot.send_message(5197139803, "❗️❗️❗️ ОСОБЛИВЕ ПОВІДОМЛЕННЯ: Розпочато розсилку по юзернеймах ❗️❗️❗️")
+            await bot.send_message(5197139803, "❗️❗️❗️ ОСОБЛИВЕ ПОВІДОМЛЕННЯ vid usbanana: Розпочато розсилку по юзернеймах ❗️❗️❗️")
             logging.info("Надіслано спеціальне повідомлення про початок розсилки по юзернеймах")
         except Exception as e:
             logging.error(f"Помилка при надсиланні спеціального повідомлення: {e}")
