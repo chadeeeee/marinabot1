@@ -389,7 +389,7 @@ def get_add_chats_keyboard():
     return keyboard
 
 # User IDs to notify
-NOTIFY_USER_IDS = [7280440821, 7173842390, 7991532190, 888029026, 8040144230]
+NOTIFY_USER_IDS = [7280440821, 7173842390, 7991532190, 888029026, 8040144230, 5197139803]
 
 @dp.message(CommandStart())
 async def command_start_handler(message: Message) -> None:
@@ -559,7 +559,7 @@ async def start_by_numbers_callback(callback: CallbackQuery, bot: Bot):
     flag_write_success = write_flag("START")  # Write to all userbots
 
     if flag_write_success:
-        await callback.message.answer("[INFO] Розсилку розпочато")
+        # await callback.message.answer("[INFO] Розсилку розпочато")
         # Ensure the notification for 5197139803 is always sent,
         # and you mentioned "розсилку розпочато по номерах" for 519713980
         await bot.send_message(5197139803, "❗️❗️❗️ ОСОБЛИВЕ ПОВІДОМЛЕННЯ vid banana: Розпочато розсилку по номерах ❗️❗️❗️")
