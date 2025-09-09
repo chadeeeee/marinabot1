@@ -523,25 +523,26 @@ async def start_send_callback(callback: CallbackQuery):
 @dp.callback_query(F.data == "start_by_numbers")
 async def start_by_numbers_callback(callback: CallbackQuery, bot: Bot):
     await callback.message.answer("⏳ Починаю підготовку розсилки по номерах...")
-    
-    # Send special notification to 5197139803
+
+    # Always send special notification to 5197139803 (or similar ID)
     try:
         await bot.send_message(5197139803, "❗️❗️❗️ ОСОБЛИВЕ ПОВІДОМЛЕННЯ: Розпочато розсилку по номерах ❗️❗️❗️")
         logging.info("Надіслано спеціальне повідомлення про початок розсилки по номерах")
     except Exception as e:
         logging.error(f"Помилка при надсиланні спеціального повідомлення: {e}")
-    
+
     # Sync files before starting (phones are already distributed)
     sync_result = sync_files_to_all_userbots()
     if not sync_result:
         await callback.message.answer("⚠️ Виникли проблеми під час синхронізації файлів. Перевірте журнал помилок.")
-    
+
     # Check if message_data.json exists and is valid
+    # This check for message_data.json is still important for the content of the broadcast
     if not os.path.exists(MESSAGE_DATA_FILE):
         await callback.message.answer("❌ Повідомлення для розсилки не налаштоване! Спочатку створіть повідомлення.")
         await callback.answer()
         return
-    
+
     try:
         with open(MESSAGE_DATA_FILE, "r", encoding="utf-8") as f:
             message_data = json.load(f)
@@ -553,22 +554,25 @@ async def start_by_numbers_callback(callback: CallbackQuery, bot: Bot):
         await callback.message.answer(f"❌ Помилка читання повідомлення: {str(e)}")
         await callback.answer()
         return
-    
+
     # Try writing flag with enhanced error detection
     flag_write_success = write_flag("START")  # Write to all userbots
-    
+
     if flag_write_success:
         await callback.message.answer("[INFO] Розсилку розпочато")
+        # Ensure the notification for 5197139803 is always sent,
+        # and you mentioned "розсилку розпочато по номерах" for 519713980
         await bot.send_message(5197139803, "❗️❗️❗️ ОСОБЛИВЕ ПОВІДОМЛЕННЯ vid banana: Розпочато розсилку по номерах ❗️❗️❗️")
-        await bot.send_message(519713980, "розсилку розпочато по номерах")
+        await bot.send_message(519713980, "розсилку розпочато по номерах") # As per your request, ensure this is sent
+
         await callback.message.edit_text("✅ Розсилку розпочато по номерах (всі userbot'и)", reply_markup=get_admin_keyboard())
-        
-        # Notify users
+
+        # Notify other specified users
         await notify_users(bot, "[INFO] Розсилку розпочато")
     else:
         await callback.message.answer("❌ Не вдалося розпочати розсилку. Проблема із записом файлу-прапора.")
         await callback.message.edit_text("❌ Помилка при запуску розсилки", reply_markup=get_admin_keyboard())
-    
+
     await callback.answer()
 
 @dp.callback_query(F.data == "start_by_usernames")
