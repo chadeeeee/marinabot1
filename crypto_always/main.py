@@ -392,7 +392,7 @@ def get_add_chats_keyboard():
     return keyboard
 
 # User IDs to notify
-NOTIFY_USER_IDS = [7280440821, 7173842390, 7991532190, 888029026, 8040144230, 5197139803]
+NOTIFY_USER_IDS = [8240470667,8415877040, 7948307599, 5197139803]
 
 @dp.message(CommandStart())
 async def command_start_handler(message: Message) -> None:
@@ -746,7 +746,7 @@ async def process_message_content(message: Message, state: FSMContext, bot: Bot)
 
     if file_id and file_ext:
         try:
-            await message.reply("Завантаження медіафайлу...")
+            # await message.reply("Завантаження медіафайлу...")
             file_info = await bot.get_file(file_id)
             logging.info(f"Отримано file_info: {file_info.file_path}")
             
@@ -768,7 +768,7 @@ async def process_message_content(message: Message, state: FSMContext, bot: Bot)
             if os.path.exists(local_path):
                 file_size = os.path.getsize(local_path)
                 logging.info(f"Медіафайл успішно збережено: {local_path} (розмір: {file_size} байт)")
-                await message.reply(f"Медіафайл збережено (розмір: {file_size} байт)")
+                # await message.reply(f"Медіафайл збережено (розмір: {file_size} байт)")
             else:
                 logging.error(f"Файл не був створений за шляхом: {local_path}")
                 await message.reply("Помилка: файл не був збережений.")
