@@ -960,3 +960,27 @@
 2025-09-08 21:19:32,385 - INFO - Користувач 380502702665 знайдений безпосередньо
 2025-09-08 21:19:39,017 - INFO - Image uploaded to imgbb: https://i.ibb.co/ZpwFKD1p/photo.jpg
 2025-09-08 21:19:39,228 - WARNING - Rate limit для 380502702665: почекаємо 178.77 секунд
+2025-09-09 20:41:57,396 - INFO - Рабочая директория: D:\Code\marinabot1\mybot_8
+2025-09-09 20:41:57,397 - INFO - Файл с Usernames: D:\Code\marinabot1\mybot_8\all_usernames.txt
+2025-09-09 20:41:57,397 - INFO - Файл данных сообщения: D:\Code\marinabot1\mybot_8\message_data.json
+2025-09-09 20:41:57,397 - INFO - Файл общей статистики: D:\Code\marinabot1\mybot_8\stats.txt
+2025-09-09 20:41:57,397 - INFO - Файл дневной статистики: D:\Code\marinabot1\mybot_8\daily_stats.json
+2025-09-09 20:41:57,397 - INFO - Файл-флаг: D:\Code\marinabot1\mybot_8\flag.txt
+2025-09-09 20:41:57,397 - INFO - Файл чатов: D:\Code\marinabot1\mybot_8\chats.txt
+2025-09-09 20:41:57,398 - INFO - Connecting to 149.154.167.51:443/TcpFull...
+2025-09-09 20:41:57,434 - INFO - Connection to 149.154.167.51:443/TcpFull complete!
+2025-09-09 20:41:57,961 - INFO - Клієнт успішно підключено, запускаємо основні задачі...
+2025-09-09 20:41:58,027 - INFO - Successfully initialized connection with bot
+2025-09-09 20:41:58,027 - INFO - Основні задачі запущено, чекаємо повідомлень...
+2025-09-09 20:41:58,028 - INFO - Задача мониторинга файла-флага і рассилки запущена.
+2025-09-09 20:45:38,158 - INFO - Розпочинаємо нову сесію розсилки
+2025-09-09 20:45:38,159 - INFO - Статус рассылки изменен на RUNNING
+2025-09-09 20:45:38,159 - INFO - Статус розсилки оновлено на RUNNING
+2025-09-09 20:45:38,159 - INFO - Target type був None. Автоматично встановлюю тип на: phones, файл: D:\Code\marinabot1\mybot_8\all_phones.txt
+2025-09-09 20:45:38,159 - INFO - Запускаємо розсилку по номерах з файлу: D:\Code\marinabot1\mybot_8\all_phones.txt
+2025-09-09 20:45:38,159 - INFO - Перевірка файлу D:\Code\marinabot1\mybot_8\all_phones.txt перед початком розсилки
+2025-09-09 20:45:38,160 - INFO - Loaded 255 targets from existing file
+2025-09-09 20:45:38,160 - INFO - Починаю розсилку по 255 номерах телефонів
+2025-09-09 20:45:38,635 - ERROR - Не вдалося відправити повідомлення адміну: Too many requests (caused by SendMessageRequest)
+2025-09-09 20:45:38,637 - INFO - Спроба відправки повідомлення на номер: 380681250908 (спроба 1)
+2025-09-09 20:45:38,897 - INFO - Користувач 380681250908 знайдений безпосередньо

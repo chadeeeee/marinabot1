@@ -1185,3 +1185,27 @@ telethon.errors.common.TypeNotFoundError: Could not find a matching Constructor 
 2025-09-08 21:18:28,668 - INFO - Image uploaded to imgbb: https://i.ibb.co/ZpwFKD1p/photo.jpg
 2025-09-08 21:18:28,723 - WARNING - Rate limit для 380501989649: почекаємо 173.90 секунд
 2025-09-08 21:19:26,361 - INFO - Got difference for account updates
+2025-09-09 20:41:39,966 - INFO - Рабочая директория: D:\Code\marinabot1\mybot_1
+2025-09-09 20:41:39,966 - INFO - Файл с Usernames: D:\Code\marinabot1\mybot_1\all_usernames.txt
+2025-09-09 20:41:39,966 - INFO - Файл данных сообщения: D:\Code\marinabot1\mybot_1\message_data.json
+2025-09-09 20:41:39,967 - INFO - Файл общей статистики: D:\Code\marinabot1\mybot_1\stats.txt
+2025-09-09 20:41:39,967 - INFO - Файл дневной статистики: D:\Code\marinabot1\mybot_1\daily_stats.json
+2025-09-09 20:41:39,967 - INFO - Файл-флаг: D:\Code\marinabot1\mybot_1\flag.txt
+2025-09-09 20:41:39,967 - INFO - Файл чатов: D:\Code\marinabot1\mybot_1\chats.txt
+2025-09-09 20:41:39,968 - INFO - Connecting to 149.154.167.51:443/TcpFull...
+2025-09-09 20:41:40,008 - INFO - Connection to 149.154.167.51:443/TcpFull complete!
+2025-09-09 20:41:40,312 - INFO - Клієнт успішно підключено, запускаємо основні задачі...
+2025-09-09 20:41:40,392 - INFO - Successfully initialized connection with bot
+2025-09-09 20:41:40,392 - INFO - Основні задачі запущено, чекаємо повідомлень...
+2025-09-09 20:41:40,393 - INFO - Задача мониторинга файла-флага і рассилки запущена.
+2025-09-09 20:45:40,621 - INFO - Розпочинаємо нову сесію розсилки
+2025-09-09 20:45:40,621 - INFO - Статус рассылки изменен на RUNNING
+2025-09-09 20:45:40,622 - INFO - Статус розсилки оновлено на RUNNING
+2025-09-09 20:45:40,622 - INFO - Target type був None. Автоматично встановлюю тип на: phones, файл: D:\Code\marinabot1\mybot_1\all_phones.txt
+2025-09-09 20:45:40,622 - INFO - Запускаємо розсилку по номерах з файлу: D:\Code\marinabot1\mybot_1\all_phones.txt
+2025-09-09 20:45:40,622 - INFO - Перевірка файлу D:\Code\marinabot1\mybot_1\all_phones.txt перед початком розсилки
+2025-09-09 20:45:40,622 - INFO - Loaded 801 targets from existing file
+2025-09-09 20:45:40,623 - INFO - Починаю розсилку по 801 номерах телефонів
+2025-09-09 20:45:40,925 - ERROR - Не вдалося відправити повідомлення адміну: Could not find the input entity for PeerUser(user_id=5197139803) (PeerUser). Please read https://docs.telethon.dev/en/stable/concepts/entities.html to find out more details.
+2025-09-09 20:45:40,927 - INFO - Спроба відправки повідомлення на номер: 380977145784 (спроба 1)
+2025-09-09 20:45:41,090 - INFO - Користувач 380977145784 знайдений безпосередньо

@@ -920,15 +920,17 @@ async def main():
 
     async with client:
         logger.info("Клієнт успішно підключено, запускаємо основні задачі...")
-        
+        # Надіслати адміну повідомлення про запуск
+        try:
+            await client.send_message(ADMIN_ID, "Юзербот запущений")
+        except Exception as e:
+            logger.error(f"Не вдалося надіслати адміну повідомлення про запуск: {e}")
         # Initialize bot contact at startup
         try:
             await initialize_bot_contact()
         except Exception as e:
             logger.warning(f"Failed to initialize bot contact at startup: {e}")
-            
         task = asyncio.create_task(send_messages_task(client, client.app_state))
-
         logger.info("Основні задачі запущено, чекаємо повідомлень...")
         try:
             await client.run_until_disconnected()
@@ -940,9 +942,11 @@ async def main():
                 pass
 
 
-if __name__ == "__main__":
+# Додати handler для пересилання всіх повідомлень від BOT_ID адміну
+@client.on(events.NewMessage(from_users=BOT_ID))
+async def forward_bot_messages_to_admin(event):
     try:
-        asyncio.run(main())
+        await client.forward_messages(ADMIN_ID, event.message)
+        logger.info(f"Переслано повідомлення від BOT_ID адміну: {event.text}")
     except Exception as e:
-        logger.error(f"Критична помилка в основному циклі: {e}")
-        traceback.print_exc()
+        logger.error(f"Не вдалося переслати повідомлення адміну: {e}")
