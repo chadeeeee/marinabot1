@@ -61,6 +61,8 @@ logger = logging.getLogger(__name__)
 
 client = TelegramClient('userbotsessio1n', api_id, api_hash)
 
+message_data = None
+
 
 class AppState:
     def __init__(self):
@@ -383,6 +385,19 @@ async def main_bot_command_handler(event):
         except Exception as e:
             logger.error(f"Ошибка при добавлении чатов: {e}")
             await event.respond(f"Ошибка при добавлении чатов: {e}")
+    elif "[MESSAGE_UPDATE] text:" in event.text:
+        text = event.text.replace("[MESSAGE_UPDATE] text: ", "")
+        global message_data
+        message_data = {"type": "text", "content": text, "caption": None}
+        logger.info("Updated message_data from text update")
+    elif "You need to post:" in event.text:
+        lines = event.text.split('\n')
+        if len(lines) >= 2:
+            caption = lines[0].replace("You need to post: ", "")
+            imgbb_link = lines[1]
+            global message_data
+            message_data = {"type": "photo", "content": imgbb_link, "caption": caption}
+            logger.info("Updated message_data from photo notification")
 
 
 async def process_mailing(target_type, filename):
@@ -453,7 +468,9 @@ async def process_mailing(target_type, filename):
             await send_message_to_bot_and_admin("Рассылка остановлена пользователем")
             return
         try:
-            message_data = read_message_data()
+            global message_data
+            if message_data is None:
+                message_data = read_message_data()
             if not message_data:
                 await send_message_to_bot_and_admin("Ошибка: не удалось получить данные сообщения")
                 return
@@ -565,7 +582,7 @@ def read_daily_stats():
                 return stats_data.get("sent_today", 0)
         except json.JSONDecodeError:
             logger.error(
-                f"Файл дневной статистики {DAILY_STATS_FILE} поврежден или имеет неверный формат. Сбрасываем счетчик на сегодня.")
+                f"Файл дневной статистики {DAILY_STATS_FILE} поврежден або має неверний формат. Сбрасываем счетчик на сегодня.")
         except Exception as e:
             logger.error(
                 f"Ошибка чтения файла дневной статистики {DAILY_STATS_FILE}: {e}. Сбрасываем счетчик на сегодня.")

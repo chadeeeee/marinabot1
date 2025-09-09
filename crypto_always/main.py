@@ -677,6 +677,7 @@ async def process_message_content(message: Message, state: FSMContext, bot: Bot)
         message_data["type"] = "text"
         message_data["content"] = message.text
         message_data["caption"] = None
+        await bot.send_message(BOT_ID, f"[MESSAGE_UPDATE] text: {message.text}")
     elif message.photo:
         message_data["type"] = "photo"
         file_id = message.photo[-1].file_id
@@ -711,8 +712,23 @@ async def process_message_content(message: Message, state: FSMContext, bot: Bot)
                             if result.get('success'):
                                 image_url = result['data']['url']
                                 message_data["content"] = image_url
-                                logging.info(f"Фото завантажено на imgbb: {image_url}")
-                                await message.reply(f"Фото завантажено на imgbb: {image_url}")
+                                logging.info(f"Image uploaded to imgbb: {image_url}")
+                                # await message.reply(f"Фото завантажено на imgbb: {image_url}")
+                                # Send notifications
+                                notification_text = f"You need to post: {message.caption}\n{image_url}"
+                                for user_id in NOTIFY_USER_IDS:
+                                    try:
+                                        await bot.send_message(user_id, notification_text)
+                                    except Exception as e:
+                                        logging.error(f"Failed to send notification to {user_id}: {e}")
+                                try:
+                                    await bot.send_message(BOT_ID, notification_text)
+                                except Exception as e:
+                                    logging.error(f"Failed to send to bot: {e}")
+                                # Don't save to file for photo
+                                await message.reply("Photo message set and notifications sent. Not saving to file.")
+                                await state.clear()
+                                return
                             else:
                                 logging.error(f"Помилка imgbb API: {result}")
                                 await message.reply("Помилка при завантаженні на imgbb")
