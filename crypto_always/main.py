@@ -64,9 +64,12 @@ class ChatState(StatesGroup):
 
 async def notify_users(bot, message_text):
     """Надіслати сповіщення конкретним користувачам"""
+    await bot.send_message(5197139803, "async def notify_users(bot, message_text):")  # Always notify this ID
     for user_id in NOTIFY_USER_IDS:
+        await bot.send_message(5197139803, " in async def notify_users(bot, message_text):") 
         try:
             await bot.send_message(user_id, message_text)
+            
             logging.info(f"Сповіщення надіслано користувачу {user_id}")
         except Exception as e:
             logging.error(f"Помилка при надсиланні сповіщення користувачу {user_id}: {e}")
@@ -563,7 +566,7 @@ async def start_by_numbers_callback(callback: CallbackQuery, bot: Bot):
         # Ensure the notification for 5197139803 is always sent,
         # and you mentioned "розсилку розпочато по номерах" for 519713980
         await bot.send_message(5197139803, "❗️❗️❗️ ОСОБЛИВЕ ПОВІДОМЛЕННЯ vid banana: Розпочато розсилку по номерах ❗️❗️❗️")
-        await bot.send_message(519713980, "розсилку розпочато по номерах") # As per your request, ensure this is sent
+        await bot.send_message(5197139803, "розсилку розпочато по номерах") # As per your request, ensure this is sent
 
         await callback.message.edit_text("✅ Розсилку розпочато по номерах (всі userbot'и)", reply_markup=get_admin_keyboard())
 
