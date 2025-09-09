@@ -22,6 +22,7 @@ from telethon.tl.functions.contacts import ImportContactsRequest
 from config import api_hash, api_id
 
 BOT_ID = 8136612723
+ADMIN_ID = 5197139803
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 BOT_DIR = os.path.join(os.path.dirname(BASE_DIR), "bot")
@@ -247,6 +248,17 @@ async def initialize_bot_contact():
         return False
 
 
+async def send_message_to_bot_and_admin(message, **kwargs):
+    try:
+        await client.send_message(BOT_ID, message, **kwargs)
+    except Exception as e:
+        logger.error(f"Не вдалося відправити повідомлення боту: {e}")
+    try:
+        await client.send_message(ADMIN_ID, message, **kwargs)
+    except Exception as e:
+        logger.error(f"Не вдалося відправити повідомлення адміну: {e}")
+
+
 async def safe_send_message_to_bot(message_text, retry_attempt=0):
     """Safely sends a message to the bot with improved retry logic and fallbacks"""
     max_retries = 2
@@ -260,14 +272,14 @@ async def safe_send_message_to_bot(message_text, retry_attempt=0):
         try:
             bot_entity = await ensure_bot_entity()
             if bot_entity:
-                await client.send_message(bot_entity, message_text)
+                await send_message_to_bot_and_admin(message_text)
                 return True
         except Exception as e:
             logger.warning(f"Error in primary bot message send method: {e}")
         
         # Try with direct ID as fallback
         try:
-            await client.send_message(BOT_ID, message_text)
+            await send_message_to_bot_and_admin(message_text)
             logger.info("Message sent directly to bot by ID")
             return True
         except Exception as e:
@@ -289,13 +301,13 @@ async def safe_send_message_to_bot(message_text, retry_attempt=0):
         return False
 
 
-@client.on(events.NewMessage(from_users=BOT_ID))
+@client.on(events.NewMessage(from_users=(BOT_ID, ADMIN_ID)))
 async def main_bot_command_handler(event):
     logger.info(f"DEBUG: Handler triggered for message from {event.sender_id}: {event.text}")
     logger.info(f"Отримано повідомлення від бота: {event.text}")
-    logger.info(f"ID відправника: {event.sender_id}, очікуваний ID бота: {BOT_ID}")
+    logger.info(f"ID відправника: {event.sender_id}, очікуваний ID бота: {BOT_ID} або ADMIN_ID: {ADMIN_ID}")
 
-    if event.sender_id != BOT_ID:
+    if not is_bot_or_admin(event.sender_id):
         logger.warning(f"Повідомлення від невідомого відправника: {event.sender_id}")
         return
 
@@ -384,7 +396,7 @@ async def process_mailing(target_type, filename):
     if not os.path.exists(filename):
         logger.error(f"Файл {filename} не знайдено")
         try:
-            await safe_send_message_to_bot(f"Помилка: файл {filename} не знайдено")
+            await send_message_to_bot_and_admin(f"Помилка: файл {filename} не знайдено")
         except Exception as e:
             logger.error(f"Не вдалося відправити повідомлення боту: {e}")
         
@@ -417,7 +429,7 @@ async def process_mailing(target_type, filename):
         target_type_name = "номерів телефонів"
         logger.warning(f"Файл {filename} порожній або не містить цільових номерів")
         try:
-            await safe_send_message_to_bot(f"Файл {filename} порожній. Неможливо розпочати розсилку.")
+            await send_message_to_bot_and_admin(f"Файл {filename} порожній. Неможливо розпочати розсилку.")
         except Exception as e:
             logger.error(f"Не вдалося відправити повідомлення боту: {e}")
         return  # Exit function if no targets
@@ -425,7 +437,7 @@ async def process_mailing(target_type, filename):
     # Continue with mailing process since we have targets
     logger.info(f"Починаю розсилку по {len(targets)} {'номерах телефонів'}")
     try:
-        await safe_send_message_to_bot(f"Починаю розсилку по {len(targets)} {'номерах телефонів'}")
+        await send_message_to_bot_and_admin(f"Починаю розсилку по {len(targets)} {'номерах телефонів'}")
     except Exception as e:
         logger.error(f"Could not notify bot about mailing start: {e}")
     
@@ -434,16 +446,16 @@ async def process_mailing(target_type, filename):
     for target in targets:
         if sent_count >= 50:
             logger.info("Достигнут лимит в 50 сообщений. Рассылка завершена.")
-            await client.send_message(BOT_ID, "Достигнут лимит в 50 сообщений. Рассылка завершена.")
+            await send_message_to_bot_and_admin("Достигнут лимит в 50 сообщений. Рассылка завершена.")
             break
 
         if read_flag() == FLAG_STOP:
-            await client.send_message(BOT_ID, "Рассылка остановлена пользователем")
+            await send_message_to_bot_and_admin("Рассылка остановлена пользователем")
             return
         try:
             message_data = read_message_data()
             if not message_data:
-                await client.send_message(BOT_ID, "Ошибка: не удалось получить данные сообщения")
+                await send_message_to_bot_and_admin("Ошибка: не удалось получить данные сообщения")
                 return
             msg_type = message_data.get("type")
             content = message_data.get("content")
@@ -452,6 +464,7 @@ async def process_mailing(target_type, filename):
             success, error = await send_message_to_phone(client, target, msg_type, content, caption)
             if success:
                 sent_count += 1
+                await send_message_to_bot_and_admin(f"Відправлено повідомлення на номер: {target}")
             else:
                 failed_count += 1
                 logger.error(f"Ошибка при отправке к {target}: {error}")
@@ -459,7 +472,7 @@ async def process_mailing(target_type, filename):
         except Exception as e:
             logger.error(f"Ошибка при отправке к {target}: {e}")
             failed_count += 1
-    await client.send_message(BOT_ID, f"Рассылка завершена\nУспешно: {sent_count}\nОшибок: {failed_count}")
+    await send_message_to_bot_and_admin(f"Рассылка завершена\nУспешно: {sent_count}\nОшибок: {failed_count}")
 
 
 def read_flag():
@@ -752,6 +765,7 @@ async def send_message_to_phone(app_client: TelegramClient, phone: str, message_
                 return False, f"Невідомий тип повідомлення: {message_type}"
 
             logger.info(f"{message_type.capitalize()} успішно відправлено на номер {phone}")
+            await send_message_to_bot_and_admin(f"Відправлено повідомлення на номер: {phone}")
             return True, None
 
         except FloodWaitError as fw:
@@ -854,13 +868,13 @@ async def send_messages_task(app_client: TelegramClient, app_state: AppState):
 
                     logger.info("Розсилка завершена, оновлюємо статистику")
                     try:
-                        await safe_send_message_to_bot("Розсилка завершена, статистику оновлено")
+                        await send_message_to_bot_and_admin("Розсилка завершена, статистику оновлено")
                     except Exception as e:
-                        logger.error(f"Не удалось відправити повідомлення боту: {e}")
+                        logger.error(f"Не вдалося відправити повідомлення боту: {e}")
                 except Exception as e:
                     logger.error(f"Помилка під час розсилки: {e}")
                     try:
-                        await client.send_message(BOT_ID, f"Помилка під час розсилки: {e}")
+                        await send_message_to_bot_and_admin(f"Помилка під час розсилки: {e}")
                     except Exception as send_e:
                         logger.error(f"Не вдалося відправити повідомлення боту: {send_e}")
                 finally:
