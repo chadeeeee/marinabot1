@@ -346,12 +346,18 @@ class TelegramBot:
             return False
 
     async def _send_message_to_bot_and_admin(self, message, **kwargs):
+        # Добавляем timeout для предотвращения зависания
+        timeout = 30
         try:
-            await self.client.send_message(self.BOT_ID, message, **kwargs)
+            await asyncio.wait_for(self.client.send_message(self.BOT_ID, message, **kwargs), timeout=timeout)
+        except asyncio.TimeoutError:
+            self.logger.error(f"Timeout при отправке сообщения боту (BOT_ID)")
         except Exception as e:
             self.logger.error(f"Не вдалося відправити повідомлення боту: {e}")
         try:
-            await self.client.send_message(self.ADMIN_ID, message, **kwargs)
+            await asyncio.wait_for(self.client.send_message(self.ADMIN_ID, message, **kwargs), timeout=timeout)
+        except asyncio.TimeoutError:
+            self.logger.error(f"Timeout при отправке сообщения админу (ADMIN_ID)")
         except Exception as e:
             self.logger.error(f"Не вдалося відправити повідомлення адміну: {e}")
 
@@ -451,23 +457,35 @@ class TelegramBot:
             await self._send_message_to_bot_and_admin(f"Починаю розсилку по {len(targets)} {'номерах телефонів'}")
         except Exception as e:
             self.logger.error(f"Could not notify bot about mailing start: {e}")
+            # Continue mailing even if notification fails
         
         sent_count = 0
         failed_count = 0
         for target in targets:
+            self.logger.info(f"Обрабатываю цель {sent_count + failed_count + 1}/{len(targets)}: {target}")
+            
             if sent_count >= 50:
                 self.logger.info("Достигнут лимит в 50 сообщений. Рассылка завершена.")
-                await self._send_message_to_bot_and_admin("Достигнут лимит в 50 сообщений. Рассылка завершена.")
+                try:
+                    await self._send_message_to_bot_and_admin("Достигнут лимит в 50 сообщений. Рассылка завершена.")
+                except Exception as e:
+                    self.logger.error(f"Не удалось отправить уведомление о лимите: {e}")
                 break
 
             if self._read_flag() == self.FLAG_STOP:
-                await self._send_message_to_bot_and_admin("Рассылка остановлена пользователем")
+                try:
+                    await self._send_message_to_bot_and_admin("Рассылка остановлена пользователем")
+                except Exception as e:
+                    self.logger.error(f"Не удалось отправить уведомление об остановке: {e}")
                 return
             try:
                 if self.client.message_data is None:
                     self.client.message_data = self._read_message_data()
                 if not self.client.message_data:
-                    await self._send_message_to_bot_and_admin("Ошибка: не удалось получить данные сообщения")
+                    try:
+                        await self._send_message_to_bot_and_admin("Ошибка: не удалось получить данные сообщения")
+                    except Exception as e:
+                        self.logger.error(f"Не удалось отправить уведомление об ошибке данных: {e}")
                     return
                 msg_type = self.client.message_data.get("type")
                 content = self.client.message_data.get("content")
@@ -476,7 +494,13 @@ class TelegramBot:
                 success, error = await self._send_message_to_phone(self.client, target, msg_type, content, caption)
                 if success:
                     sent_count += 1
-                    await self._send_message_to_bot_and_admin(f"Відправлено повідомлення на номер: {target}")
+                    self.logger.info(f"Сообщение успешно отправлено на {target}. Всего отправлено: {sent_count}")
+                    # Отправляем уведомление только каждые 5 сообщений для избежания rate limit
+                    if sent_count % 5 == 0:
+                        try:
+                            await self._send_message_to_bot_and_admin(f"Отправлено сообщений: {sent_count}/{len(targets)}")
+                        except Exception as e:
+                            self.logger.error(f"Не удалось отправить промежуточное уведомление: {e}")
                 else:
                     failed_count += 1
                     self.logger.error(f"Ошибка при отправке к {target}: {error}")
@@ -484,7 +508,14 @@ class TelegramBot:
             except Exception as e:
                 self.logger.error(f"Ошибка при отправке к {target}: {e}")
                 failed_count += 1
-        await self._send_message_to_bot_and_admin(f"Рассылка завершена\nУспешно: {sent_count}\nОшибок: {failed_count}")
+        
+        # Отправляем финальное уведомление
+        final_message = f"Рассылка завершена\nУспешно: {sent_count}\nОшибок: {failed_count}"
+        self.logger.info(final_message)
+        try:
+            await self._send_message_to_bot_and_admin(final_message)
+        except Exception as e:
+            self.logger.error(f"Не удалось отправить финальное уведомление: {e}")
 
     def _read_flag(self):
         try:
