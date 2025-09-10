@@ -7,6 +7,7 @@ import uuid
 import shutil
 import random
 import aiohttp
+import time
 from datetime import datetime
 
 from aiogram import Bot, Dispatcher, F
@@ -52,6 +53,105 @@ if not os.path.exists(MEDIA_DIR):
         os.chmod(MEDIA_DIR, 0o755)
     except Exception as e:
         logging.error(f"Не вдалося створити папку {MEDIA_DIR}: {e}")
+
+
+# --- JSON IO helpers: atomic write and resilient read ---
+def _write_json_atomic(file_path: str, data: dict) -> bool:
+    """Safely write JSON using a temp file + atomic replace to avoid partial writes."""
+    try:
+        dir_name = os.path.dirname(file_path) or "."
+        os.makedirs(dir_name, exist_ok=True)
+        temp_path = os.path.join(dir_name, f".{os.path.basename(file_path)}.tmp")
+        with open(temp_path, "w", encoding="utf-8", newline="\n") as f:
+            json.dump(data, f, ensure_ascii=False, indent=4)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(temp_path, file_path)
+        return True
+    except Exception as e:
+        logging.error(f"Помилка атомарного запису JSON у {file_path}: {e}")
+        return False
+
+
+def _read_message_data_resilient() -> dict | None:
+    """Resiliently read message_data.json with retries, encoding fallbacks, and auto-repair.
+
+    Returns a dict if available, else writes and returns a default structure.
+    """
+    default_message = {
+        "type": "photo",
+        "content": "https://i.ibb.co/m53f4rfb/photo.jpg",
+        "caption": "🔥Ексклюзивні худі зі знижкою🔥Підписуйся на закритий телеграм канал👉 https://cutt.ly/wrK7p9r7",
+        "local_content": "./media/photo.jpg",
+        "rel_content": "./media/photo.jpg",
+    }
+
+    # If file missing or empty, create default
+    try:
+        if not os.path.exists(MESSAGE_DATA_FILE) or os.path.getsize(MESSAGE_DATA_FILE) == 0:
+            logging.warning(f"message_data.json відсутній або порожній. Створюю стандартний.")
+            _write_json_atomic(MESSAGE_DATA_FILE, default_message)
+            return default_message
+    except Exception as e:
+        logging.error(f"Помилка доступу до {MESSAGE_DATA_FILE}: {e}")
+        _write_json_atomic(MESSAGE_DATA_FILE, default_message)
+        return default_message
+
+    encodings = ["utf-8", "utf-8-sig", "cp1251", "latin-1"]
+    last_error = None
+    for attempt in range(1, 4):
+        content = None
+        used_encoding = None
+        for enc in encodings:
+            try:
+                with open(MESSAGE_DATA_FILE, "r", encoding=enc) as f:
+                    content = f.read()
+                    if content and content.strip():
+                        used_encoding = enc
+                        break
+            except UnicodeDecodeError as e:
+                last_error = e
+                continue
+            except Exception as e:
+                last_error = e
+                continue
+
+        if not content or not content.strip():
+            logging.warning(f"Спроба {attempt}: файл порожній/непрочитаний. Повтор...")
+            time.sleep(0.2)
+            continue
+
+        cleaned = content.strip()
+        if cleaned.startswith('\ufeff'):
+            cleaned = cleaned[1:]
+        cleaned = ''.join(ch for ch in cleaned if ord(ch) >= 32 or ch in '\n\r\t')
+        if not cleaned:
+            logging.warning(f"Спроба {attempt}: після очищення порожньо. Повтор...")
+            time.sleep(0.2)
+            continue
+
+        try:
+            logging.info(f"Парсинг message_data.json (спроба {attempt}, кодування {used_encoding}, розмір {len(cleaned)})")
+            data = json.loads(cleaned)
+            if isinstance(data, dict) and data.get("type"):
+                return data
+            else:
+                logging.warning("JSON не містить коректних даних повідомлення. Використовую стандартне.")
+                return default_message
+        except json.JSONDecodeError as e:
+            last_error = e
+            logging.warning(f"Спроба {attempt}: JSONDecodeError: {e}. Повтор...")
+            time.sleep(0.2)
+            continue
+        except Exception as e:
+            last_error = e
+            logging.warning(f"Спроба {attempt}: помилка парсингу: {e}. Повтор...")
+            time.sleep(0.2)
+            continue
+
+    logging.error(f"❌ Помилка читання message_data.json після ретраїв: {last_error}")
+    _write_json_atomic(MESSAGE_DATA_FILE, default_message)
+    return default_message
 
 
 class MessageState(StatesGroup):
@@ -109,19 +209,11 @@ def sync_config_to_all_userbots():
 def sync_files_to_all_userbots():
     """Синхронізувати message_data.json у всі директорії юзерботів (телефони обробляються distribute_phones_to_userbots)"""
     try:
-        # Прочитати основні файли
-        message_data_content = ""
-        
-        if os.path.exists(MESSAGE_DATA_FILE):
-            with open(MESSAGE_DATA_FILE, "r", encoding="utf-8") as f:
-                message_data_content = f.read()
-                
-                # Verify JSON is valid
-                try:
-                    json.loads(message_data_content)
-                except json.JSONDecodeError as e:
-                    logging.error(f"Invalid JSON in message_data.json: {e}")
-                    return False
+        # Read source message data resiliently
+        message_data = _read_message_data_resilient()
+        if not isinstance(message_data, dict) or not message_data.get("type"):
+            logging.error("Некоректний message_data при синхронізації")
+            return False
         
         # Синхронізувати з усіма директоріями юзерботів
         for base_dir in BASE_DIRS:
@@ -133,8 +225,8 @@ def sync_files_to_all_userbots():
             # Синхронізувати message_data.json
             target_message_file = os.path.join(base_dir, "message_data.json")
             try:
-                with open(target_message_file, "w", encoding="utf-8") as f:
-                    f.write(message_data_content)
+                if not _write_json_atomic(target_message_file, message_data):
+                    raise IOError("atomic write failed")
             except Exception as e:
                 logging.error(f"Помилка синхронізації message_data.json в {base_dir}: {e}")
             
@@ -393,6 +485,8 @@ def get_add_chats_keyboard():
 
 # User IDs to notify
 NOTIFY_USER_IDS = [8240470667,8415877040, 7948307599, 5197139803]
+# Bridge bot chat ID used by userbot instances
+BOT_ID = 8136612723
 
 @dp.message(CommandStart())
 async def command_start_handler(message: Message) -> None:
@@ -539,22 +633,10 @@ async def start_by_numbers_callback(callback: CallbackQuery, bot: Bot):
     if not sync_result:
         await callback.message.answer("⚠️ Виникли проблеми під час синхронізації файлів. Перевірте журнал помилок.")
 
-    # Check if message_data.json exists and is valid
-    # This check for message_data.json is still important for the content of the broadcast
-    if not os.path.exists(MESSAGE_DATA_FILE):
+    # Validate message_data.json (resilient)
+    message_data = _read_message_data_resilient()
+    if not isinstance(message_data, dict) or not message_data.get("type"):
         await callback.message.answer("❌ Повідомлення для розсилки не налаштоване! Спочатку створіть повідомлення.")
-        await callback.answer()
-        return
-
-    try:
-        with open(MESSAGE_DATA_FILE, "r", encoding="utf-8") as f:
-            message_data = json.load(f)
-            if not message_data.get("type") or not message_data.get("content"):
-                await callback.message.answer("❌ Некоректне повідомлення для розсилки! Налаштуйте повідомлення знову.")
-                await callback.answer()
-                return
-    except Exception as e:
-        await callback.message.answer(f"❌ Помилка читання повідомлення: {str(e)}")
         await callback.answer()
         return
 
@@ -697,7 +779,7 @@ async def process_message_content(message: Message, state: FSMContext, bot: Bot)
             await state.clear()
             return
         
-        # Upload to imgbb.com
+    # Upload to imgbb.com
         imgbb_url = "https://api.imgbb.com/1/upload"
         api_key = "ce979babca80641f52db24b816ea2201"
         try:
@@ -725,8 +807,11 @@ async def process_message_content(message: Message, state: FSMContext, bot: Bot)
                                     await bot.send_message(BOT_ID, notification_text)
                                 except Exception as e:
                                     logging.error(f"Failed to send to bot: {e}")
-                                # Don't save to file for photo
-                                await message.reply("Photo message set and notifications sent. Not saving to file.")
+                                # Save to file to keep system consistent
+                                _write_json_atomic(MESSAGE_DATA_FILE, message_data)
+                                # Sync to userbots
+                                sync_files_to_all_userbots()
+                                await message.reply("Photo message set, saved, and synced.")
                                 await state.clear()
                                 return
                             else:
@@ -789,10 +874,8 @@ async def process_message_content(message: Message, state: FSMContext, bot: Bot)
                 logging.error(f"Файл не був створений за шляхом: {local_path}")
                 await message.reply("Помилка: файл не був збережений.")
                 
-            # Use absolute path for userbots to avoid path issues
-            abs_media_path = os.path.abspath(MEDIA_DIR)
-            message_data["content"] = os.path.join(abs_media_path, fixed_filename)
-            # Add a compatibility field for userbots that might expect relative paths
+            # Save relative path in content to avoid absolute drive references
+            message_data["content"] = f"./media/{fixed_filename}"
             message_data["rel_content"] = f"./media/{fixed_filename}"
         except Exception as e:
             logging.error(f"Помилка при завантаженні медіафайлу: {str(e)}")
@@ -801,8 +884,7 @@ async def process_message_content(message: Message, state: FSMContext, bot: Bot)
             return
 
     try:
-        with open(MESSAGE_DATA_FILE, "w", encoding="utf-8") as f:
-            json.dump(message_data, f, ensure_ascii=False, indent=4)
+        _write_json_atomic(MESSAGE_DATA_FILE, message_data)
             
         # List files in media directory to confirm
         if file_id:
