@@ -505,7 +505,13 @@ class TelegramBot:
                 self.client.message_data = self._read_message_data()
                 
                 if not self.client.message_data:
-                    self.logger.error("Не удалось получить данные сообщения. Пропускаем этот target.")
+                    self.logger.error("❌ Не удалось получить данные сообщения. Пропускаем этот target.")
+                    failed_count += 1
+                    continue
+                
+                # Дополнительная проверка валидности данных сообщения
+                if not isinstance(self.client.message_data, dict):
+                    self.logger.error("❌ Данные сообщения не являются словарем. Пропускаем этот target.")
                     failed_count += 1
                     continue
                     
@@ -513,8 +519,13 @@ class TelegramBot:
                 content = self.client.message_data.get("content")
                 caption = self.client.message_data.get("caption")
                 
+                if not msg_type:
+                    self.logger.error("❌ Тип сообщения не указан. Пропускаем этот target.")
+                    failed_count += 1
+                    continue
+                
                 # Логируем данные сообщения для отладки
-                self.logger.info(f"Данные сообщения: тип={msg_type}, контент={content}, заголовок={caption}")
+                self.logger.info(f"✅ Данные сообщения: тип={msg_type}, контент={content}, заголовок={caption}")
                 
                 # Если content пустой, попробуем использовать резервные варианты
                 if not content:
@@ -526,7 +537,7 @@ class TelegramBot:
                         self.logger.info(f"Используем rel_content: {content}")
                     
                     if not content:
-                        self.logger.error(f"Не удалось получить контент для сообщения. Пропускаем {target}")
+                        self.logger.error(f"❌ Не удалось получить контент для сообщения. Пропускаем {target}")
                         failed_count += 1
                         continue
 
@@ -595,66 +606,102 @@ class TelegramBot:
 
     def _read_message_data(self):
         message_data = None
+        
+        # Создаем базовое сообщение как fallback
+        default_message = {
+            "type": "photo",
+            "content": "https://i.ibb.co/m53f4rfb/photo.jpg",
+            "caption": "🔥Ексклюзивні худі зі знижкою🔥Підписуйся на закритий телеграм канал👉 https://cutt.ly/wrK7p9r7",
+            "local_content": "./media/photo.jpg",
+            "rel_content": "./media/photo.jpg"
+        }
+        
         if not os.path.exists(self.MESSAGE_DATA_FILE):
-            self.logger.warning(f"Файл {self.MESSAGE_DATA_FILE} не найден. Возвращаю None.")
-            return message_data
+            self.logger.warning(f"Файл {self.MESSAGE_DATA_FILE} не найден. Создаю файл с базовым сообщением.")
+            try:
+                with open(self.MESSAGE_DATA_FILE, "w", encoding="utf-8") as f:
+                    json.dump(default_message, f, ensure_ascii=False, indent=2)
+                self.logger.info("Файл с базовым сообщением создан")
+                return default_message
+            except Exception as e:
+                self.logger.error(f"Не удалось создать файл сообщения: {e}")
+                return default_message
         
         try:
+            # Проверяем размер файла
+            file_size = os.path.getsize(self.MESSAGE_DATA_FILE)
+            if file_size == 0:
+                self.logger.warning(f"Файл {self.MESSAGE_DATA_FILE} пустой. Пересоздаю с базовым содержимым.")
+                with open(self.MESSAGE_DATA_FILE, "w", encoding="utf-8") as f:
+                    json.dump(default_message, f, ensure_ascii=False, indent=2)
+                return default_message
+            
             # Читаем файл с разными кодировками
             encodings = ['utf-8', 'utf-8-sig', 'cp1251', 'latin-1']
             content = None
+            used_encoding = None
             
             for encoding in encodings:
                 try:
                     with open(self.MESSAGE_DATA_FILE, "r", encoding=encoding) as f:
-                        content = f.read().strip()
-                        if content:
+                        content = f.read()
+                        if content.strip():
+                            used_encoding = encoding
                             self.logger.info(f"Файл успешно прочитан с кодировкой {encoding}")
                             break
-                except UnicodeDecodeError:
+                except (UnicodeDecodeError, Exception):
                     continue
             
-            if not content:
-                self.logger.warning(f"Файл {self.MESSAGE_DATA_FILE} пустой или не удалось прочитать.")
-                return None
-                
-            # Удаляем BOM если есть
+            if not content or not content.strip():
+                self.logger.warning(f"Файл {self.MESSAGE_DATA_FILE} пустой или не удалось прочитать. Пересоздаю.")
+                with open(self.MESSAGE_DATA_FILE, "w", encoding="utf-8") as f:
+                    json.dump(default_message, f, ensure_ascii=False, indent=2)
+                return default_message
+            
+            # Очищаем содержимое
+            content = content.strip()
             if content.startswith('\ufeff'):
                 content = content[1:]
+            
+            # Удаляем невидимые символы и пробелы
+            content = ''.join(char for char in content if ord(char) >= 32 or char in '\n\r\t')
+            
+            if not content:
+                self.logger.warning("После очистки файл оказался пустым. Пересоздаю.")
+                with open(self.MESSAGE_DATA_FILE, "w", encoding="utf-8") as f:
+                    json.dump(default_message, f, ensure_ascii=False, indent=2)
+                return default_message
                 
-            self.logger.info(f"Пытаюсь распарсить JSON: {content[:200]}...")
+            self.logger.info(f"Пытаюсь распарсить JSON (размер: {len(content)}): {content[:100]}...")
             message_data = json.loads(content)
             self.logger.info(f"JSON успешно распарсен: {message_data}")
             
-        except json.JSONDecodeError as e:
-            self.logger.error(f"Ошибка декодирования JSON в файле {self.MESSAGE_DATA_FILE}: {e}")
-            self.logger.error(f"Содержимое файла: {content[:200] if content else 'не удалось прочитать'}")
-            
-            # Попробуем создать базовое сообщение
-            self.logger.info("Создаю базовое сообщение...")
-            message_data = {
-                "type": "photo",
-                "content": "https://i.ibb.co/m53f4rfb/photo.jpg",
-                "caption": "🔥Ексклюзивні худі зі знижкою🔥Підписуйся на закритий телеграм канал👉 https://cutt.ly/wrK7p9r7",
-                "local_content": "./media/photo.jpg",
-                "rel_content": "./media/photo.jpg"
-            }
-            
-            # Сохраняем исправленное сообщение
-            try:
-                with open(self.MESSAGE_DATA_FILE, "w", encoding="utf-8") as f:
-                    json.dump(message_data, f, ensure_ascii=False, indent=2)
-                self.logger.info("Базовое сообщение создано и сохранено")
-            except Exception as save_e:
-                self.logger.error(f"Не удалось сохранить базовое сообщение: {save_e}")
+            # Проверяем, что сообщение содержит необходимые поля
+            if not isinstance(message_data, dict) or 'type' not in message_data:
+                self.logger.warning("JSON не содержит корректных данных сообщения. Использую базовое сообщение.")
+                return default_message
             
             return message_data
             
+        except json.JSONDecodeError as e:
+            self.logger.error(f"❌ Помилка читання повідомлення: {e}")
+            self.logger.error(f"Проблемное содержимое файла (первые 200 символов): {content[:200] if content else 'пустое'}")
+            
+            # Пересоздаем файл с корректным содержимым
+            self.logger.info("Пересоздаю файл с корректным JSON...")
+            try:
+                with open(self.MESSAGE_DATA_FILE, "w", encoding="utf-8") as f:
+                    json.dump(default_message, f, ensure_ascii=False, indent=2)
+                self.logger.info("✅ Файл сообщения пересоздан с корректным содержимым")
+            except Exception as save_e:
+                self.logger.error(f"Не удалось пересоздать файл: {save_e}")
+            
+            return default_message
+            
         except Exception as e:
             self.logger.error(f"Общая ошибка чтения файла сообщения {self.MESSAGE_DATA_FILE}: {e}")
-            return None
-            
-        return message_data
+            self.logger.info("Использую базовое сообщение из-за ошибки")
+            return default_message
 
     def _update_total_stats(self, sent_count):
         current_count = 0
