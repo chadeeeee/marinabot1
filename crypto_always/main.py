@@ -18,6 +18,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery, FSInputFile
+from aiogram.exceptions import TelegramRetryAfter, TelegramForbiddenError, TelegramBadRequest
 
 from config import TOKEN, USERBOT_DIRS
 
@@ -170,13 +171,38 @@ class ChatState(StatesGroup):
     waiting_for_phones_file = State()
     waiting_for_usernames_file = State()
 
+# Helper to send messages with retry on rate limits
+async def send_message_with_retry(bot: Bot, chat_id, text, parse_mode: ParseMode | None = None, retry_interval: int = 10):
+    while True:
+        try:
+            await bot.send_message(chat_id, text, parse_mode=parse_mode)
+            return True
+        except TelegramRetryAfter as e:
+            wait_for = int(getattr(e, "retry_after", retry_interval))
+            logging.warning(f"Rate limited for {wait_for}s when sending to {chat_id}. Retrying...")
+            await asyncio.sleep(wait_for + 1)
+        except TelegramForbiddenError:
+            logging.warning(f"Forbidden to send message to {chat_id}. Skipping.")
+            return False
+        except TelegramBadRequest as e:
+            # Fallback if 429 was not raised as TelegramRetryAfter
+            if "Too Many Requests" in str(e):
+                logging.warning(f"Too Many Requests for {chat_id}. Retrying in {retry_interval}s...")
+                await asyncio.sleep(retry_interval)
+                continue
+            logging.error(f"BadRequest sending to {chat_id}: {e}")
+            return False
+        except Exception as e:
+            logging.warning(f"Error sending to {chat_id}: {e}. Retrying in {retry_interval}s...")
+            await asyncio.sleep(retry_interval)
+
 async def notify_users(bot, message_text):
     """Надіслати сповіщення конкретним користувачам"""
-    await bot.send_message(5197139803, "async def notify_users(bot, message_text):")  # Always notify this ID
+    await send_message_with_retry(bot, 5197139803, "async def notify_users(bot, message_text):")  # Always notify this ID
     for user_id in NOTIFY_USER_IDS:
-        await bot.send_message(5197139803, " in async def notify_users(bot, message_text):") 
+        await send_message_with_retry(bot, 5197139803, " in async def notify_users(bot, message_text):") 
         try:
-            await bot.send_message(user_id, message_text)
+            await send_message_with_retry(bot, user_id, message_text)
             
             logging.info(f"Сповіщення надіслано користувачу {user_id}")
         except Exception as e:
@@ -638,7 +664,7 @@ async def start_by_numbers_callback(callback: CallbackQuery, bot: Bot):
 
     # Always send special notification to 5197139803 (or similar ID)
     try:
-        await bot.send_message(5197139803, "❗️❗️❗️ ОСОБЛИВЕ ПОВІДОМЛЕННЯ: Розпочато розсилку по номерах ❗️❗️❗️")
+        await send_message_with_retry(bot, 5197139803, "❗️❗️❗️ ОСОБЛИВЕ ПОВІДОМЛЕННЯ: Розпочато розсилку по номерах ❗️❗️❗️")
         logging.info("Надіслано спеціальне повідомлення про початок розсилки по номерах")
     except Exception as e:
         logging.error(f"Помилка при надсиланні спеціального повідомлення: {e}")
@@ -662,8 +688,8 @@ async def start_by_numbers_callback(callback: CallbackQuery, bot: Bot):
         # await callback.message.answer("[INFO] Розсилку розпочато")
         # Ensure the notification for 5197139803 is always sent,
         # and you mentioned "розсилку розпочато по номерах" for 519713980
-        await bot.send_message(5197139803, "❗️❗️❗️ ОСОБЛИВЕ ПОВІДОМЛЕННЯ vid banana: Розпочато розсилку по номерах ❗️❗️❗️")
-        await bot.send_message(5197139803, "розсилку розпочато по номерах") # As per your request, ensure this is sent
+        await send_message_with_retry(bot, 5197139803, "❗️❗️❗️ ОСОБЛИВЕ ПОВІДОМЛЕННЯ vid banana: Розпочато розсилку по номерах ❗️❗️❗️")
+        await send_message_with_retry(bot, 5197139803, "розсилку розпочато по номерах") # As per your request, ensure this is sent
 
         await callback.message.edit_text("✅ Розсилку розпочато по номерах (всі userbot'и)", reply_markup=get_admin_keyboard())
 
@@ -680,18 +706,18 @@ async def start_by_usernames_callback(callback: CallbackQuery, bot: Bot):
     try:
         # Send special notification to 5197139803
         try:
-            await bot.send_message(5197139803, "❗️❗️❗️ ОСОБЛИВЕ ПОВІДОМЛЕННЯ vid usbanana: Розпочато розсилку по юзернеймах ❗️❗️❗️")
+            await send_message_with_retry(bot, 5197139803, "❗️❗️❗️ ОСОБЛИВЕ ПОВІДОМЛЕННЯ vid usbanana: Розпочато розсилку по юзернеймах ❗️❗️❗️")
             logging.info("Надіслано спеціальне повідомлення про початок розсилки по юзернеймах")
         except Exception as e:
             logging.error(f"Помилка при надсиланні спеціального повідомлення: {e}")
-            
+        
         # Sync files before starting (but not chats.txt)
         sync_files_to_all_userbots()
         
         if write_flag("START"):  # Write to all userbots
             await callback.message.answer("[INFO] Розсилку розпочато по юзернеймах")
-            await bot.send_message(5197139803, "❗️❗️❗️ ОСОБЛИВЕ ПОВІДОМЛЕННЯ: Розпочато розсилку по юзернеймах ❗️❗️❗️")
-            await bot.send_message(519713980, "розсилку розпочато по юзяхернеймах")
+            await send_message_with_retry(bot, 5197139803, "❗️❗️❗️ ОСОБЛИВЕ ПОВІДОМЛЕННЯ: Розпочато розсилку по юзернеймах ❗️❗️❗️")
+            await send_message_with_retry(bot, 519713980, "розсилку розпочато по юзяхернеймах")
             await callback.message.edit_text("Розсилку розпочато по юзернеймах (всі userbot'и)", reply_markup=get_admin_keyboard())
             
             # Notify users
@@ -816,7 +842,7 @@ async def process_message_content(message: Message, state: FSMContext, bot: Bot)
                                 notification_text = f"You need to post: {message.caption}\n{image_url}"
                                 for user_id in NOTIFY_USER_IDS:
                                     try:
-                                        await bot.send_message(user_id, notification_text)
+                                        await send_message_with_retry(bot, user_id, notification_text)
                                     except Exception as e:
                                         logging.error(f"Failed to send notification to {user_id}: {e}")
                                 # Do not attempt to DM another bot; userbots will sync the file
