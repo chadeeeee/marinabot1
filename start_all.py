@@ -1,8 +1,8 @@
 import subprocess
 
 bots = [
-    # "mybot_1/main.py",
-    # "mybot_3/main.py",
+    "mybot_1/main.py",
+    "mybot_3/main.py",
     "mybot_8/main.py",
     "crypto_always/main.py"
 ]

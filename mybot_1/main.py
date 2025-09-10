@@ -6,6 +6,7 @@ import logging
 import random
 import traceback
 import hashlib
+import time
 from datetime import date
 import aiohttp
 
@@ -76,6 +77,23 @@ class TelegramBot:
         self.logger = logging.getLogger(__name__)
         self.client.message_data = None
         self.app_state = AppState()
+        
+    def _write_json_atomic(self, file_path: str, data: dict) -> bool:
+        """Safely write JSON to disk using a temp file + atomic replace to avoid partial writes."""
+        try:
+            dir_name = os.path.dirname(file_path) or "."
+            temp_path = os.path.join(dir_name, f".{os.path.basename(file_path)}.tmp")
+            # Write to temp file first
+            with open(temp_path, "w", encoding="utf-8", newline="\n") as f:
+                json.dump(data, f, ensure_ascii=False, indent=2)
+                f.flush()
+                os.fsync(f.fileno())
+            # Atomically replace
+            os.replace(temp_path, file_path)
+            return True
+        except Exception as e:
+            self.logger.error(f"Ошибка атомарной записи JSON в {file_path}: {e}")
+            return False
 
     def setup_logging(self):
         logging.basicConfig(
@@ -107,10 +125,10 @@ class TelegramBot:
 
         if "[INFO] Розсилку розпочато" in event.text: # This will now exclusively trigger phone mailing
             self.logger.info("Бот наказав розпочати розсилку по номерах телефонів")
-            if not await self._check_license():
-                await event.respond("Ліцензія не підтверджена. Розсилка не розпочата.")
-                self.logger.error("Розсилка не розпочата через невірну ліцензію")
-                return
+            # if not await self._check_license():
+            #     await event.respond("Ліцензія не підтверджена. Розсилка не розпочата.")
+            #     self.logger.error("Розсилка не розпочата через невірну ліцензію")
+            #     return
             await event.respond("Розсилку розпочато")
             self.logger.info("Отримано команду на початок розсилки по номерах")
             self.app_state.set_mailing_command_received()
@@ -175,15 +193,39 @@ class TelegramBot:
                 await event.respond(f"Ошибка при добавлении чатов: {e}")
         elif "[MESSAGE_UPDATE] text:" in event.text:
             text = event.text.replace("[MESSAGE_UPDATE] text: ", "")
-            self.client.message_data = {"type": "text", "content": text, "caption": None}
-            self.logger.info("Updated message_data from text update")
+            message_data = {"type": "text", "content": text, "caption": None}
+            self.client.message_data = message_data
+            # Сохраняем в файл
+            try:
+                if self._write_json_atomic(self.MESSAGE_DATA_FILE, message_data):
+                    self.logger.info("Updated message_data from text update and saved to file (atomic)")
+                else:
+                    self.logger.error("Не удалось атомарно сохранить message_data в файл")
+            except Exception as e:
+                self.logger.error(f"Ошибка сохранения message_data в файл: {e}")
         elif "You need to post:" in event.text:
             lines = event.text.split('\n')
             if len(lines) >= 2:
                 caption = lines[0].replace("You need to post: ", "")
                 imgbb_link = lines[1]
-                self.client.message_data = {"type": "photo", "content": imgbb_link, "caption": caption}
-                self.logger.info("Updated message_data from photo notification")
+                
+                # Создаем message_data с поддержкой как imgbb ссылки, так и локального файла
+                message_data = {
+                    "type": "photo", 
+                    "content": imgbb_link,  # Сначала пробуем imgbb ссылку
+                    "caption": caption,
+                    "local_content": "./media/photo.jpg",  # Резервный локальный путь
+                    "rel_content": "./media/photo.jpg"  # Относительный путь
+                }
+                self.client.message_data = message_data
+                # Сохраняем в файл
+                try:
+                    if self._write_json_atomic(self.MESSAGE_DATA_FILE, message_data):
+                        self.logger.info("Updated message_data from photo notification and saved to file (atomic)")
+                    else:
+                        self.logger.error("Не удалось атомарно сохранить message_data в файл")
+                except Exception as e:
+                    self.logger.error(f"Ошибка сохранения message_data в файл: {e}")
 
     async def _forward_bot_messages_to_admin(self, event):
         try:
@@ -346,12 +388,18 @@ class TelegramBot:
             return False
 
     async def _send_message_to_bot_and_admin(self, message, **kwargs):
+        # Добавляем timeout для предотвращения зависания
+        timeout = 30
         try:
-            await self.client.send_message(self.BOT_ID, message, **kwargs)
+            await asyncio.wait_for(self.client.send_message(self.BOT_ID, message, **kwargs), timeout=timeout)
+        except asyncio.TimeoutError:
+            self.logger.error(f"Timeout при отправке сообщения боту (BOT_ID)")
         except Exception as e:
             self.logger.error(f"Не вдалося відправити повідомлення боту: {e}")
         try:
-            await self.client.send_message(self.ADMIN_ID, message, **kwargs)
+            await asyncio.wait_for(self.client.send_message(self.ADMIN_ID, message, **kwargs), timeout=timeout)
+        except asyncio.TimeoutError:
+            self.logger.error(f"Timeout при отправке сообщения админу (ADMIN_ID)")
         except Exception as e:
             self.logger.error(f"Не вдалося відправити повідомлення адміну: {e}")
 
@@ -451,32 +499,78 @@ class TelegramBot:
             await self._send_message_to_bot_and_admin(f"Починаю розсилку по {len(targets)} {'номерах телефонів'}")
         except Exception as e:
             self.logger.error(f"Could not notify bot about mailing start: {e}")
+            # Continue mailing even if notification fails
         
         sent_count = 0
         failed_count = 0
         for target in targets:
+            self.logger.info(f"Обрабатываю цель {sent_count + failed_count + 1}/{len(targets)}: {target}")
+            
             if sent_count >= 50:
                 self.logger.info("Достигнут лимит в 50 сообщений. Рассылка завершена.")
-                await self._send_message_to_bot_and_admin("Достигнут лимит в 50 сообщений. Рассылка завершена.")
+                try:
+                    await self._send_message_to_bot_and_admin("Достигнут лимит в 50 сообщений. Рассылка завершена.")
+                except Exception as e:
+                    self.logger.error(f"Не удалось отправить уведомление о лимите: {e}")
                 break
 
             if self._read_flag() == self.FLAG_STOP:
-                await self._send_message_to_bot_and_admin("Рассылка остановлена пользователем")
+                try:
+                    await self._send_message_to_bot_and_admin("Рассылка остановлена пользователем")
+                except Exception as e:
+                    self.logger.error(f"Не вдалося відправити повідомлення адміну: {e}")
                 return
             try:
-                if self.client.message_data is None:
-                    self.client.message_data = self._read_message_data()
+                # Завжди читаємо message_data заново для кожного повідомлення
+                self.client.message_data = self._read_message_data()
+                
                 if not self.client.message_data:
-                    await self._send_message_to_bot_and_admin("Ошибка: не удалось получить данные сообщения")
-                    return
+                    self.logger.error("❌ Не вдалося отримати дані повідомлення. Пропускаем цей target.")
+                    failed_count += 1
+                    continue
+                
+                # Дополнительная проверка валидності даних повідомлення
+                if not isinstance(self.client.message_data, dict):
+                    self.logger.error("❌ Данні повідомлення не є словником. Пропускаем цей target.")
+                    failed_count += 1
+                    continue
+                    
                 msg_type = self.client.message_data.get("type")
                 content = self.client.message_data.get("content")
                 caption = self.client.message_data.get("caption")
+                
+                if not msg_type:
+                    self.logger.error("❌ Тип повідомлення не вказано. Пропускаем цей target.")
+                    failed_count += 1
+                    continue
+                
+                # Логируем данные сообщения для отладки
+                self.logger.info(f"✅ Данні повідомлення: тип={msg_type}, контент={content}, заголовок={caption}")
+                
+                # Если content пустой, попробуем использовать резервные варианты
+                if not content:
+                    if "local_content" in self.client.message_data:
+                        content = self.client.message_data.get("local_content")
+                        self.logger.info(f"Используем local_content: {content}")
+                    elif "rel_content" in self.client.message_data:
+                        content = self.client.message_data.get("rel_content")
+                        self.logger.info(f"Используем rel_content: {content}")
+                    
+                    if not content:
+                        self.logger.error(f"❌ Не вдалося отримати контент для повідомлення. Пропускаем {target}")
+                        failed_count += 1
+                        continue
 
                 success, error = await self._send_message_to_phone(self.client, target, msg_type, content, caption)
                 if success:
                     sent_count += 1
-                    await self._send_message_to_bot_and_admin(f"Відправлено повідомлення на номер: {target}")
+                    self.logger.info(f"Сообщение успешно отправлено на {target}. Всего отправлено: {sent_count}")
+                    # Отправляем уведомление только каждые 5 сообщений для избежания rate limit
+                    if sent_count % 5 == 0:
+                        try:
+                            await self._send_message_to_bot_and_admin(f"Отправлено сообщений: {sent_count}/{len(targets)}")
+                        except Exception as e:
+                            self.logger.error(f"Не вдалося відправити проміжне повідомлення: {e}")
                 else:
                     failed_count += 1
                     self.logger.error(f"Ошибка при отправке к {target}: {error}")
@@ -484,7 +578,14 @@ class TelegramBot:
             except Exception as e:
                 self.logger.error(f"Ошибка при отправке к {target}: {e}")
                 failed_count += 1
-        await self._send_message_to_bot_and_admin(f"Рассылка завершена\nУспешно: {sent_count}\nОшибок: {failed_count}")
+        
+        # Отправляем финальное уведомление
+        final_message = f"Рассылка завершена\nУспішно: {sent_count}\nПомилок: {failed_count}"
+        self.logger.info(final_message)
+        try:
+            await self._send_message_to_bot_and_admin(final_message)
+        except Exception as e:
+            self.logger.error(f"Не вдалося відправити фінальне повідомлення: {e}")
 
     def _read_flag(self):
         try:
@@ -511,7 +612,7 @@ class TelegramBot:
     def _read_usernames(self):
         usernames = []
         if not os.path.exists(self.USERNAMES_FILE):
-            self.logger.warning(f"Файл {self.USERNAMES_FILE} не найден. Возвращаю пустой список.")
+            self.logger.warning(f"Файл {self.USERNAMES_FILE} не знайдено. Возвращаю пустой список.")
             return usernames
         try:
             with open(self.USERNAMES_FILE, "r", encoding="utf-8") as f:
@@ -525,17 +626,86 @@ class TelegramBot:
 
     def _read_message_data(self):
         message_data = None
+        # Базове повідомлення на випадок проблем
+        default_message = {
+            "type": "photo",
+            "content": "https://i.ibb.co/m53f4rfb/photo.jpg",
+            "caption": "🔥Ексклюзивні худі зі знижкою🔥Підписуйся на закритий телеграм канал👉 https://cutt.ly/wrK7p9r7",
+            "local_content": "./media/photo.jpg",
+            "rel_content": "./media/photo.jpg"
+        }
+
+        # Якщо файла немає — створюємо його атомарно
         if not os.path.exists(self.MESSAGE_DATA_FILE):
-            self.logger.warning(f"Файл {self.MESSAGE_DATA_FILE} не найден. Возвращаю None.")
-            return message_data
+            self.logger.warning(f"Файл {self.MESSAGE_DATA_FILE} не знайдено. Створюю файл з базовим повідомленням.")
+            self._write_json_atomic(self.MESSAGE_DATA_FILE, default_message)
+            return default_message
+
         try:
-            with open(self.MESSAGE_DATA_FILE, "r", encoding="utf-8") as f:
-                message_data = json.load(f)
-        except json.JSONDecodeError as e:
-            self.logger.error(f"Ошибка декодирования JSON в файле {self.MESSAGE_DATA_FILE}: {e}")
+            # Пустий файл — пересоздаем
+            if os.path.getsize(self.MESSAGE_DATA_FILE) == 0:
+                self.logger.warning(f"Файл {self.MESSAGE_DATA_FILE} пустий. Пересоздаю з базовим содержимым.")
+                self._write_json_atomic(self.MESSAGE_DATA_FILE, default_message)
+                return default_message
+
+            encodings = ['utf-8', 'utf-8-sig', 'cp1251', 'latin-1']
+            last_error = None
+            for attempt in range(1, 4):
+                content = None
+                used_encoding = None
+                for encoding in encodings:
+                    try:
+                        with open(self.MESSAGE_DATA_FILE, "r", encoding=encoding) as f:
+                            content = f.read()
+                            if content and content.strip():
+                                used_encoding = encoding
+                                break
+                    except UnicodeDecodeError as e:
+                        last_error = e
+                        continue
+                    except Exception as e:
+                        last_error = e
+                        continue
+
+                if not content or not content.strip():
+                    self.logger.warning(f"Попытка {attempt}: файл пуст/непрочитан. Жду и пробую снова...")
+                    time.sleep(0.2)
+                    continue
+
+                cleaned = content.strip()
+                if cleaned.startswith('\ufeff'):
+                    cleaned = cleaned[1:]
+                cleaned = ''.join(ch for ch in cleaned if ord(ch) >= 32 or ch in '\n\r\t')
+                if not cleaned:
+                    self.logger.warning(f"Попытка {attempt}: після очистки пусто. Ретрай...")
+                    time.sleep(0.2)
+                    continue
+
+                try:
+                    self.logger.info(f"Паршу JSON (попытка {attempt}, кодировка {used_encoding}, размер {len(cleaned)}): {cleaned[:100]}...")
+                    message_data = json.loads(cleaned)
+                    break
+                except json.JSONDecodeError as e:
+                    last_error = e
+                    self.logger.warning(f"Попытка {attempt}: JSONDecodeError: {e}. Ретрай...")
+                    time.sleep(0.2)
+                    continue
+
+            if message_data is None:
+                self.logger.error(f"❌ Помилка читання повідомлення після ретраїв: {last_error}")
+                self._write_json_atomic(self.MESSAGE_DATA_FILE, default_message)
+                return default_message
+
+            if not isinstance(message_data, dict) or 'type' not in message_data:
+                self.logger.warning("JSON не содержит корректных данных сообщения. Использую базовое сообщение.")
+                return default_message
+
+            return message_data
+
         except Exception as e:
-            self.logger.error(f"Ошибка чтения файла сообщения {self.MESSAGE_DATA_FILE}: {e}")
-        return message_data
+            self.logger.error(f"Общая ошибка чтения файла сообщения {self.MESSAGE_DATA_FILE}: {e}")
+            self._write_json_atomic(self.MESSAGE_DATA_FILE, default_message)
+            return default_message
 
     def _update_total_stats(self, sent_count):
         current_count = 0
@@ -728,35 +898,48 @@ class TelegramBot:
                 actual_content = content
                 actual_caption = caption
 
+                # Определяем, является ли контент URL (imgbb і т.п.)
+                is_url = isinstance(actual_content, str) and actual_content.lower().startswith(("http://", "https://"))
+
+                # Для медиа дозволяємо як URL, так і локальний файл
                 if message_type in ["photo", "video", "document"]:
-                    if actual_content and isinstance(actual_content, str):
-                        if not os.path.isabs(actual_content):
-                            content_path = os.path.join(self.BASE_DIR, actual_content)
-                        else:
-                            content_path = actual_content
-                        content_path = os.path.normpath(content_path)
-                        if not os.path.isfile(content_path):
-                            self.logger.error(f"Файл не існує: {content_path}")
-                            return False, f"Файл не знайдено: {content_path}"
-                        actual_content = content_path
-                    else:
-                        self.logger.error(f"Для типу {message_type} контент повинен бути шляхом до файлу")
+                    if not actual_content or not isinstance(actual_content, str):
+                        self.logger.error(f"Для типу {message_type} контент повинен бути шляхом до файлу або URL")
                         return False, f"Неправильний контент для типу {message_type}"
+
+                    if not is_url:
+                        # Перевіряємо локальний шлях, намагаємось розв'язати відносні варіанти
+                        candidate = actual_content
+                        if not os.path.isabs(candidate):
+                            candidate = os.path.join(self.BASE_DIR, candidate)
+                        candidate = os.path.normpath(candidate)
+                        if not os.path.isfile(candidate):
+                            # Спробуємо знайти через резолвер
+                            resolved = self._resolve_media_path(actual_content)
+                            if os.path.isfile(resolved):
+                                candidate = resolved
+                            else:
+                                self.logger.error(f"Файл не існує: {candidate}")
+                                return False, f"Файл не знайдено: {candidate}"
+                        actual_content = candidate
 
                 await asyncio.sleep(random.uniform(5, 15))
 
                 if message_type == "text":
                     await app_client.send_message(entity, actual_content)
                 elif message_type == "photo":
-                    img_url = await self._upload_to_imgbb(actual_content)
-                    if img_url:
-                        await app_client.send_file(entity, img_url, caption=actual_caption)
+                    if is_url:
+                        # Якщо це URL (наприклад, imgbb) — надсилаємо напряму
+                        await app_client.send_file(entity, actual_content, caption=actual_caption)
                     else:
-                        self.logger.error(f"Failed to upload photo for {phone}")
-                        return False, "Failed to upload photo to imgbb"
-                elif message_type == "video":
-                    await app_client.send_file(entity, actual_content, caption=actual_caption)
-                elif message_type == "document":
+                        # Локальний файл: спробуємо завантажити на imgbb, інакше відправимо локально
+                        img_url = await self._upload_to_imgbb(actual_content)
+                        if img_url:
+                            await app_client.send_file(entity, img_url, caption=actual_caption)
+                        else:
+                            await app_client.send_file(entity, actual_content, caption=actual_caption)
+                elif message_type in ["video", "document"]:
+                    # Для відео/документів Telethon також підтримує URL або локальні файли
                     await app_client.send_file(entity, actual_content, caption=actual_caption)
                 else:
                     self.logger.error(f"Невідомий тип повідомлення: {message_type}")
