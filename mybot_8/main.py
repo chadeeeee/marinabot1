@@ -175,15 +175,37 @@ class TelegramBot:
                 await event.respond(f"Ошибка при добавлении чатов: {e}")
         elif "[MESSAGE_UPDATE] text:" in event.text:
             text = event.text.replace("[MESSAGE_UPDATE] text: ", "")
-            self.client.message_data = {"type": "text", "content": text, "caption": None}
-            self.logger.info("Updated message_data from text update")
+            message_data = {"type": "text", "content": text, "caption": None}
+            self.client.message_data = message_data
+            # Сохраняем в файл
+            try:
+                with open(self.MESSAGE_DATA_FILE, "w", encoding="utf-8") as f:
+                    json.dump(message_data, f, ensure_ascii=False, indent=2)
+                self.logger.info("Updated message_data from text update and saved to file")
+            except Exception as e:
+                self.logger.error(f"Ошибка сохранения message_data в файл: {e}")
         elif "You need to post:" in event.text:
             lines = event.text.split('\n')
             if len(lines) >= 2:
                 caption = lines[0].replace("You need to post: ", "")
                 imgbb_link = lines[1]
-                self.client.message_data = {"type": "photo", "content": imgbb_link, "caption": caption}
-                self.logger.info("Updated message_data from photo notification")
+                
+                # Создаем message_data с поддержкой как imgbb ссылки, так и локального файла
+                message_data = {
+                    "type": "photo", 
+                    "content": imgbb_link,  # Сначала пробуем imgbb ссылку
+                    "caption": caption,
+                    "local_content": "D:\\Code\\marinabot1\\media\\photo.jpg",  # Резервный локальный путь
+                    "rel_content": "./media/photo.jpg"  # Относительный путь
+                }
+                self.client.message_data = message_data
+                # Сохраняем в файл
+                try:
+                    with open(self.MESSAGE_DATA_FILE, "w", encoding="utf-8") as f:
+                        json.dump(message_data, f, ensure_ascii=False, indent=2)
+                    self.logger.info("Updated message_data from photo notification and saved to file")
+                except Exception as e:
+                    self.logger.error(f"Ошибка сохранения message_data в файл: {e}")
 
     async def _forward_bot_messages_to_admin(self, event):
         try:
@@ -490,6 +512,18 @@ class TelegramBot:
                 msg_type = self.client.message_data.get("type")
                 content = self.client.message_data.get("content")
                 caption = self.client.message_data.get("caption")
+                
+                # Логируем данные сообщения для отладки
+                self.logger.info(f"Данные сообщения: тип={msg_type}, контент={content}, заголовок={caption}")
+                
+                # Если content пустой, попробуем использовать резервные варианты
+                if not content:
+                    if "local_content" in self.client.message_data:
+                        content = self.client.message_data.get("local_content")
+                        self.logger.info(f"Используем local_content: {content}")
+                    elif "rel_content" in self.client.message_data:
+                        content = self.client.message_data.get("rel_content")
+                        self.logger.info(f"Используем rel_content: {content}")
 
                 success, error = await self._send_message_to_phone(self.client, target, msg_type, content, caption)
                 if success:
@@ -561,11 +595,18 @@ class TelegramBot:
             return message_data
         try:
             with open(self.MESSAGE_DATA_FILE, "r", encoding="utf-8") as f:
-                message_data = json.load(f)
+                content = f.read().strip()
+                if not content:
+                    self.logger.warning(f"Файл {self.MESSAGE_DATA_FILE} пустой.")
+                    return None
+                message_data = json.loads(content)
         except json.JSONDecodeError as e:
             self.logger.error(f"Ошибка декодирования JSON в файле {self.MESSAGE_DATA_FILE}: {e}")
+            self.logger.error(f"Содержимое файла: {content[:100] if 'content' in locals() else 'не удалось прочитать'}")
+            return None
         except Exception as e:
             self.logger.error(f"Ошибка чтения файла сообщения {self.MESSAGE_DATA_FILE}: {e}")
+            return None
         return message_data
 
     def _update_total_stats(self, sent_count):
