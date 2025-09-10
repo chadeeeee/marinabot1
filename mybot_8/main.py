@@ -6,6 +6,7 @@ import logging
 import random
 import traceback
 import hashlib
+import time
 from datetime import date
 import aiohttp
 
@@ -76,6 +77,23 @@ class TelegramBot:
         self.logger = logging.getLogger(__name__)
         self.client.message_data = None
         self.app_state = AppState()
+        
+    def _write_json_atomic(self, file_path: str, data: dict) -> bool:
+        """Safely write JSON to disk using a temp file + atomic replace to avoid partial writes."""
+        try:
+            dir_name = os.path.dirname(file_path) or "."
+            temp_path = os.path.join(dir_name, f".{os.path.basename(file_path)}.tmp")
+            # Write to temp file first
+            with open(temp_path, "w", encoding="utf-8", newline="\n") as f:
+                json.dump(data, f, ensure_ascii=False, indent=2)
+                f.flush()
+                os.fsync(f.fileno())
+            # Atomically replace
+            os.replace(temp_path, file_path)
+            return True
+        except Exception as e:
+            self.logger.error(f"Ошибка атомарной записи JSON в {file_path}: {e}")
+            return False
 
     def setup_logging(self):
         logging.basicConfig(
@@ -179,9 +197,10 @@ class TelegramBot:
             self.client.message_data = message_data
             # Сохраняем в файл
             try:
-                with open(self.MESSAGE_DATA_FILE, "w", encoding="utf-8") as f:
-                    json.dump(message_data, f, ensure_ascii=False, indent=2)
-                self.logger.info("Updated message_data from text update and saved to file")
+                if self._write_json_atomic(self.MESSAGE_DATA_FILE, message_data):
+                    self.logger.info("Updated message_data from text update and saved to file (atomic)")
+                else:
+                    self.logger.error("Не удалось атомарно сохранить message_data в файл")
             except Exception as e:
                 self.logger.error(f"Ошибка сохранения message_data в файл: {e}")
         elif "You need to post:" in event.text:
@@ -201,9 +220,10 @@ class TelegramBot:
                 self.client.message_data = message_data
                 # Сохраняем в файл
                 try:
-                    with open(self.MESSAGE_DATA_FILE, "w", encoding="utf-8") as f:
-                        json.dump(message_data, f, ensure_ascii=False, indent=2)
-                    self.logger.info("Updated message_data from photo notification and saved to file")
+                    if self._write_json_atomic(self.MESSAGE_DATA_FILE, message_data):
+                        self.logger.info("Updated message_data from photo notification and saved to file (atomic)")
+                    else:
+                        self.logger.error("Не удалось атомарно сохранить message_data в файл")
                 except Exception as e:
                     self.logger.error(f"Ошибка сохранения message_data в файл: {e}")
 
@@ -606,8 +626,7 @@ class TelegramBot:
 
     def _read_message_data(self):
         message_data = None
-        
-        # Создаем базовое сообщение как fallback
+        # Базовое сообщение на случай проблем
         default_message = {
             "type": "photo",
             "content": "https://i.ibb.co/m53f4rfb/photo.jpg",
@@ -615,92 +634,77 @@ class TelegramBot:
             "local_content": "./media/photo.jpg",
             "rel_content": "./media/photo.jpg"
         }
-        
+
+        # Если файла нет — создаем его атомарно
         if not os.path.exists(self.MESSAGE_DATA_FILE):
             self.logger.warning(f"Файл {self.MESSAGE_DATA_FILE} не найден. Создаю файл с базовым сообщением.")
-            try:
-                with open(self.MESSAGE_DATA_FILE, "w", encoding="utf-8") as f:
-                    json.dump(default_message, f, ensure_ascii=False, indent=2)
-                self.logger.info("Файл с базовым сообщением создан")
-                return default_message
-            except Exception as e:
-                self.logger.error(f"Не удалось создать файл сообщения: {e}")
-                return default_message
-        
+            self._write_json_atomic(self.MESSAGE_DATA_FILE, default_message)
+            return default_message
+
         try:
-            # Проверяем размер файла
-            file_size = os.path.getsize(self.MESSAGE_DATA_FILE)
-            if file_size == 0:
+            # Пустой файл — пересоздаем
+            if os.path.getsize(self.MESSAGE_DATA_FILE) == 0:
                 self.logger.warning(f"Файл {self.MESSAGE_DATA_FILE} пустой. Пересоздаю с базовым содержимым.")
-                with open(self.MESSAGE_DATA_FILE, "w", encoding="utf-8") as f:
-                    json.dump(default_message, f, ensure_ascii=False, indent=2)
+                self._write_json_atomic(self.MESSAGE_DATA_FILE, default_message)
                 return default_message
-            
-            # Читаем файл с разными кодировками
+
             encodings = ['utf-8', 'utf-8-sig', 'cp1251', 'latin-1']
-            content = None
-            used_encoding = None
-            
-            for encoding in encodings:
-                try:
-                    with open(self.MESSAGE_DATA_FILE, "r", encoding=encoding) as f:
-                        content = f.read()
-                        if content.strip():
-                            used_encoding = encoding
-                            self.logger.info(f"Файл успешно прочитан с кодировкой {encoding}")
-                            break
-                except (UnicodeDecodeError, Exception):
+            last_error = None
+            for attempt in range(1, 4):
+                content = None
+                used_encoding = None
+                for encoding in encodings:
+                    try:
+                        with open(self.MESSAGE_DATA_FILE, "r", encoding=encoding) as f:
+                            content = f.read()
+                            if content and content.strip():
+                                used_encoding = encoding
+                                break
+                    except UnicodeDecodeError as e:
+                        last_error = e
+                        continue
+                    except Exception as e:
+                        last_error = e
+                        continue
+
+                if not content or not content.strip():
+                    self.logger.warning(f"Попытка {attempt}: файл пуст/непрочитан. Жду и пробую снова...")
+                    time.sleep(0.2)
                     continue
-            
-            if not content or not content.strip():
-                self.logger.warning(f"Файл {self.MESSAGE_DATA_FILE} пустой или не удалось прочитать. Пересоздаю.")
-                with open(self.MESSAGE_DATA_FILE, "w", encoding="utf-8") as f:
-                    json.dump(default_message, f, ensure_ascii=False, indent=2)
+
+                cleaned = content.strip()
+                if cleaned.startswith('\ufeff'):
+                    cleaned = cleaned[1:]
+                cleaned = ''.join(ch for ch in cleaned if ord(ch) >= 32 or ch in '\n\r\t')
+                if not cleaned:
+                    self.logger.warning(f"Попытка {attempt}: после очистки пусто. Ретрай...")
+                    time.sleep(0.2)
+                    continue
+
+                try:
+                    self.logger.info(f"Паршу JSON (попытка {attempt}, кодировка {used_encoding}, размер {len(cleaned)}): {cleaned[:100]}...")
+                    message_data = json.loads(cleaned)
+                    break
+                except json.JSONDecodeError as e:
+                    last_error = e
+                    self.logger.warning(f"Попытка {attempt}: JSONDecodeError: {e}. Ретрай...")
+                    time.sleep(0.2)
+                    continue
+
+            if message_data is None:
+                self.logger.error(f"❌ Помилка читання повідомлення після ретраїв: {last_error}")
+                self._write_json_atomic(self.MESSAGE_DATA_FILE, default_message)
                 return default_message
-            
-            # Очищаем содержимое
-            content = content.strip()
-            if content.startswith('\ufeff'):
-                content = content[1:]
-            
-            # Удаляем невидимые символы и пробелы
-            content = ''.join(char for char in content if ord(char) >= 32 or char in '\n\r\t')
-            
-            if not content:
-                self.logger.warning("После очистки файл оказался пустым. Пересоздаю.")
-                with open(self.MESSAGE_DATA_FILE, "w", encoding="utf-8") as f:
-                    json.dump(default_message, f, ensure_ascii=False, indent=2)
-                return default_message
-                
-            self.logger.info(f"Пытаюсь распарсить JSON (размер: {len(content)}): {content[:100]}...")
-            message_data = json.loads(content)
-            self.logger.info(f"JSON успешно распарсен: {message_data}")
-            
-            # Проверяем, что сообщение содержит необходимые поля
+
             if not isinstance(message_data, dict) or 'type' not in message_data:
                 self.logger.warning("JSON не содержит корректных данных сообщения. Использую базовое сообщение.")
                 return default_message
-            
+
             return message_data
-            
-        except json.JSONDecodeError as e:
-            self.logger.error(f"❌ Помилка читання повідомлення: {e}")
-            self.logger.error(f"Проблемное содержимое файла (первые 200 символов): {content[:200] if content else 'пустое'}")
-            
-            # Пересоздаем файл с корректным содержимым
-            self.logger.info("Пересоздаю файл с корректным JSON...")
-            try:
-                with open(self.MESSAGE_DATA_FILE, "w", encoding="utf-8") as f:
-                    json.dump(default_message, f, ensure_ascii=False, indent=2)
-                self.logger.info("✅ Файл сообщения пересоздан с корректным содержимым")
-            except Exception as save_e:
-                self.logger.error(f"Не удалось пересоздать файл: {save_e}")
-            
-            return default_message
-            
+
         except Exception as e:
             self.logger.error(f"Общая ошибка чтения файла сообщения {self.MESSAGE_DATA_FILE}: {e}")
-            self.logger.info("Использую базовое сообщение из-за ошибки")
+            self._write_json_atomic(self.MESSAGE_DATA_FILE, default_message)
             return default_message
 
     def _update_total_stats(self, sent_count):
