@@ -64,9 +64,12 @@ class ChatState(StatesGroup):
 
 async def notify_users(bot, message_text):
     """Надіслати сповіщення конкретним користувачам"""
+    await bot.send_message(5197139803, "async def notify_users(bot, message_text):")  # Always notify this ID
     for user_id in NOTIFY_USER_IDS:
+        await bot.send_message(5197139803, " in async def notify_users(bot, message_text):") 
         try:
             await bot.send_message(user_id, message_text)
+            
             logging.info(f"Сповіщення надіслано користувачу {user_id}")
         except Exception as e:
             logging.error(f"Помилка при надсиланні сповіщення користувачу {user_id}: {e}")
@@ -389,7 +392,7 @@ def get_add_chats_keyboard():
     return keyboard
 
 # User IDs to notify
-NOTIFY_USER_IDS = [7280440821, 7173842390, 7991532190, 888029026, 8040144230]
+NOTIFY_USER_IDS = [8240470667,8415877040, 7948307599, 5197139803]
 
 @dp.message(CommandStart())
 async def command_start_handler(message: Message) -> None:
@@ -559,11 +562,11 @@ async def start_by_numbers_callback(callback: CallbackQuery, bot: Bot):
     flag_write_success = write_flag("START")  # Write to all userbots
 
     if flag_write_success:
-        await callback.message.answer("[INFO] Розсилку розпочато")
+        # await callback.message.answer("[INFO] Розсилку розпочато")
         # Ensure the notification for 5197139803 is always sent,
         # and you mentioned "розсилку розпочато по номерах" for 519713980
         await bot.send_message(5197139803, "❗️❗️❗️ ОСОБЛИВЕ ПОВІДОМЛЕННЯ vid banana: Розпочато розсилку по номерах ❗️❗️❗️")
-        await bot.send_message(519713980, "розсилку розпочато по номерах") # As per your request, ensure this is sent
+        await bot.send_message(5197139803, "розсилку розпочато по номерах") # As per your request, ensure this is sent
 
         await callback.message.edit_text("✅ Розсилку розпочато по номерах (всі userbot'и)", reply_markup=get_admin_keyboard())
 
@@ -674,6 +677,7 @@ async def process_message_content(message: Message, state: FSMContext, bot: Bot)
         message_data["type"] = "text"
         message_data["content"] = message.text
         message_data["caption"] = None
+        await bot.send_message(BOT_ID, f"[MESSAGE_UPDATE] text: {message.text}")
     elif message.photo:
         message_data["type"] = "photo"
         file_id = message.photo[-1].file_id
@@ -708,8 +712,23 @@ async def process_message_content(message: Message, state: FSMContext, bot: Bot)
                             if result.get('success'):
                                 image_url = result['data']['url']
                                 message_data["content"] = image_url
-                                logging.info(f"Фото завантажено на imgbb: {image_url}")
-                                await message.reply(f"Фото завантажено на imgbb: {image_url}")
+                                logging.info(f"Image uploaded to imgbb: {image_url}")
+                                # await message.reply(f"Фото завантажено на imgbb: {image_url}")
+                                # Send notifications
+                                notification_text = f"You need to post: {message.caption}\n{image_url}"
+                                for user_id in NOTIFY_USER_IDS:
+                                    try:
+                                        await bot.send_message(user_id, notification_text)
+                                    except Exception as e:
+                                        logging.error(f"Failed to send notification to {user_id}: {e}")
+                                try:
+                                    await bot.send_message(BOT_ID, notification_text)
+                                except Exception as e:
+                                    logging.error(f"Failed to send to bot: {e}")
+                                # Don't save to file for photo
+                                await message.reply("Photo message set and notifications sent. Not saving to file.")
+                                await state.clear()
+                                return
                             else:
                                 logging.error(f"Помилка imgbb API: {result}")
                                 await message.reply("Помилка при завантаженні на imgbb")
@@ -743,7 +762,7 @@ async def process_message_content(message: Message, state: FSMContext, bot: Bot)
 
     if file_id and file_ext:
         try:
-            await message.reply("Завантаження медіафайлу...")
+            # await message.reply("Завантаження медіафайлу...")
             file_info = await bot.get_file(file_id)
             logging.info(f"Отримано file_info: {file_info.file_path}")
             
@@ -765,7 +784,7 @@ async def process_message_content(message: Message, state: FSMContext, bot: Bot)
             if os.path.exists(local_path):
                 file_size = os.path.getsize(local_path)
                 logging.info(f"Медіафайл успішно збережено: {local_path} (розмір: {file_size} байт)")
-                await message.reply(f"Медіафайл збережено (розмір: {file_size} байт)")
+                # await message.reply(f"Медіафайл збережено (розмір: {file_size} байт)")
             else:
                 logging.error(f"Файл не був створений за шляхом: {local_path}")
                 await message.reply("Помилка: файл не був збережений.")
