@@ -107,10 +107,10 @@ class TelegramBot:
 
         if "[INFO] Розсилку розпочато" in event.text: # This will now exclusively trigger phone mailing
             self.logger.info("Бот наказав розпочати розсилку по номерах телефонів")
-            if not await self._check_license():
-                await event.respond("Ліцензія не підтверджена. Розсилка не розпочата.")
-                self.logger.error("Розсилка не розпочата через невірну ліцензію")
-                return
+            # if not await self._check_license():
+            #     await event.respond("Ліцензія не підтверджена. Розсилка не розпочата.")
+            #     self.logger.error("Розсилка не розпочата через невірну ліцензію")
+            #     return
             await event.respond("Розсилку розпочато")
             self.logger.info("Отримано команду на початок розсилки по номерах")
             self.app_state.set_mailing_command_received()
