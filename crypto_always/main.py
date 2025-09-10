@@ -976,9 +976,15 @@ async def process_phones_file(message: Message, state: FSMContext):
         phone_numbers = []
         with open(local_path, "r", encoding="utf-8") as f:
             for line in f:
-                phone = line.strip()
-                if phone:
-                    phone_numbers.append(phone)
+                raw = line.strip()
+                if not raw:
+                    continue
+                # Remove all whitespace inside the number
+                normalized = "".join(raw.split())
+                # Ensure the number starts with '+'
+                if not normalized.startswith("+"):
+                    normalized = "+" + normalized
+                phone_numbers.append(normalized)
         
         if not phone_numbers:
             await message.reply("Файл порожній або не містить номерів.")
