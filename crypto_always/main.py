@@ -23,13 +23,21 @@ from config import TOKEN, USERBOT_DIRS
 
 LICENSE_CHECK_INTERVAL = 60  # Check every minute
 
-# Build paths for all userbot directories
+# Build paths for all userbot directories robustly (avoid accidental absolute // paths)
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 BASE_DIRS = []
 for userbot_dir in USERBOT_DIRS:
-    base_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), userbot_dir)
+    # Support absolute paths but normalize; otherwise join to project root
+    dir_str = str(userbot_dir)
+    if os.path.isabs(dir_str):
+        base_dir = os.path.normpath(dir_str)
+    else:
+        # Strip any leading slashes to prevent os.path.join creating root-based paths
+        safe_rel = dir_str.lstrip("/\\")
+        base_dir = os.path.normpath(os.path.join(PROJECT_ROOT, safe_rel))
     BASE_DIRS.append(base_dir)
 
-# Use first directory as primary for bot operations
+# Use first directory as primary for bot operations (after normalization)
 PRIMARY_BASE_DIR = BASE_DIRS[0]
 CHATS_FILE = os.path.join(PRIMARY_BASE_DIR, "chats.txt")
 MESSAGE_DATA_FILE = os.path.join(PRIMARY_BASE_DIR, "message_data.json")
@@ -193,13 +201,20 @@ def sync_config_to_all_userbots():
         
         # Синхронізувати з усіма директоріями юзерботів
         for base_dir in BASE_DIRS:
+            # Ensure userbot directory exists to avoid "No such file or directory"
+            try:
+                os.makedirs(base_dir, exist_ok=True)
+            except Exception as e:
+                logging.error(f"Не вдалося створити директорію {base_dir}: {e}")
+                continue
+
             target_config_file = os.path.join(base_dir, "filter_config.json")
             try:
                 with open(target_config_file, "w", encoding="utf-8") as f:
                     f.write(filter_config)
-                logging.info(f"Синхронізовано конфігурацію фільтра в {base_dir}")
+                logging.info(f"Синхронізовано конфігурацію фільтра в {os.path.normpath(base_dir)}")
             except Exception as e:
-                logging.error(f"Помилка синхронізації конфігурації фільтра в {base_dir}: {e}")
+                logging.error(f"Помилка синхронізації конфігурації фільтра в {os.path.normpath(base_dir)}: {e}")
         
         return True
     except Exception as e:
@@ -759,7 +774,8 @@ async def process_message_content(message: Message, state: FSMContext, bot: Bot)
         message_data["type"] = "text"
         message_data["content"] = message.text
         message_data["caption"] = None
-        await bot.send_message(BOT_ID, f"[MESSAGE_UPDATE] text: {message.text}")
+        # Skip sending to another bot: Telegram forbids bots messaging bots.
+        # Userbots will read message_data.json directly after sync.
     elif message.photo:
         message_data["type"] = "photo"
         file_id = message.photo[-1].file_id
@@ -803,10 +819,7 @@ async def process_message_content(message: Message, state: FSMContext, bot: Bot)
                                         await bot.send_message(user_id, notification_text)
                                     except Exception as e:
                                         logging.error(f"Failed to send notification to {user_id}: {e}")
-                                try:
-                                    await bot.send_message(BOT_ID, notification_text)
-                                except Exception as e:
-                                    logging.error(f"Failed to send to bot: {e}")
+                                # Do not attempt to DM another bot; userbots will sync the file
                                 # Save to file to keep system consistent
                                 _write_json_atomic(MESSAGE_DATA_FILE, message_data)
                                 # Sync to userbots
