@@ -2,6 +2,6 @@
   "type": "photo",
   "content": "https://i.ibb.co/m53f4rfb/photo.jpg",
   "caption": "🔥Ексклюзивні худі зі знижкою🔥Підписуйся на закритий телеграм канал👉 https://cutt.ly/wrK7p9r7",
-  "local_content": "D:\\Code\\marinabot1\\media\\photo.jpg",
+  "local_content": "./media/photo.jpg",
   "rel_content": "./media/photo.jpg"
 }

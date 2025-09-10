@@ -195,7 +195,7 @@ class TelegramBot:
                     "type": "photo", 
                     "content": imgbb_link,  # Сначала пробуем imgbb ссылку
                     "caption": caption,
-                    "local_content": "D:\\Code\\marinabot1\\media\\photo.jpg",  # Резервный локальный путь
+                    "local_content": "./media/photo.jpg",  # Резервный локальный путь
                     "rel_content": "./media/photo.jpg"  # Относительный путь
                 }
                 self.client.message_data = message_data
@@ -501,14 +501,14 @@ class TelegramBot:
                     self.logger.error(f"Не удалось отправить уведомление об остановке: {e}")
                 return
             try:
-                if self.client.message_data is None:
-                    self.client.message_data = self._read_message_data()
+                # Завжди читаємо message_data заново для кожного повідомлення
+                self.client.message_data = self._read_message_data()
+                
                 if not self.client.message_data:
-                    try:
-                        await self._send_message_to_bot_and_admin("Ошибка: не удалось получить данные сообщения")
-                    except Exception as e:
-                        self.logger.error(f"Не удалось отправить уведомление об ошибке данных: {e}")
-                    return
+                    self.logger.error("Не удалось получить данные сообщения. Пропускаем этот target.")
+                    failed_count += 1
+                    continue
+                    
                 msg_type = self.client.message_data.get("type")
                 content = self.client.message_data.get("content")
                 caption = self.client.message_data.get("caption")
@@ -524,6 +524,11 @@ class TelegramBot:
                     elif "rel_content" in self.client.message_data:
                         content = self.client.message_data.get("rel_content")
                         self.logger.info(f"Используем rel_content: {content}")
+                    
+                    if not content:
+                        self.logger.error(f"Не удалось получить контент для сообщения. Пропускаем {target}")
+                        failed_count += 1
+                        continue
 
                 success, error = await self._send_message_to_phone(self.client, target, msg_type, content, caption)
                 if success:
@@ -593,20 +598,62 @@ class TelegramBot:
         if not os.path.exists(self.MESSAGE_DATA_FILE):
             self.logger.warning(f"Файл {self.MESSAGE_DATA_FILE} не найден. Возвращаю None.")
             return message_data
+        
         try:
-            with open(self.MESSAGE_DATA_FILE, "r", encoding="utf-8") as f:
-                content = f.read().strip()
-                if not content:
-                    self.logger.warning(f"Файл {self.MESSAGE_DATA_FILE} пустой.")
-                    return None
-                message_data = json.loads(content)
+            # Читаем файл с разными кодировками
+            encodings = ['utf-8', 'utf-8-sig', 'cp1251', 'latin-1']
+            content = None
+            
+            for encoding in encodings:
+                try:
+                    with open(self.MESSAGE_DATA_FILE, "r", encoding=encoding) as f:
+                        content = f.read().strip()
+                        if content:
+                            self.logger.info(f"Файл успешно прочитан с кодировкой {encoding}")
+                            break
+                except UnicodeDecodeError:
+                    continue
+            
+            if not content:
+                self.logger.warning(f"Файл {self.MESSAGE_DATA_FILE} пустой или не удалось прочитать.")
+                return None
+                
+            # Удаляем BOM если есть
+            if content.startswith('\ufeff'):
+                content = content[1:]
+                
+            self.logger.info(f"Пытаюсь распарсить JSON: {content[:200]}...")
+            message_data = json.loads(content)
+            self.logger.info(f"JSON успешно распарсен: {message_data}")
+            
         except json.JSONDecodeError as e:
             self.logger.error(f"Ошибка декодирования JSON в файле {self.MESSAGE_DATA_FILE}: {e}")
-            self.logger.error(f"Содержимое файла: {content[:100] if 'content' in locals() else 'не удалось прочитать'}")
-            return None
+            self.logger.error(f"Содержимое файла: {content[:200] if content else 'не удалось прочитать'}")
+            
+            # Попробуем создать базовое сообщение
+            self.logger.info("Создаю базовое сообщение...")
+            message_data = {
+                "type": "photo",
+                "content": "https://i.ibb.co/m53f4rfb/photo.jpg",
+                "caption": "🔥Ексклюзивні худі зі знижкою🔥Підписуйся на закритий телеграм канал👉 https://cutt.ly/wrK7p9r7",
+                "local_content": "./media/photo.jpg",
+                "rel_content": "./media/photo.jpg"
+            }
+            
+            # Сохраняем исправленное сообщение
+            try:
+                with open(self.MESSAGE_DATA_FILE, "w", encoding="utf-8") as f:
+                    json.dump(message_data, f, ensure_ascii=False, indent=2)
+                self.logger.info("Базовое сообщение создано и сохранено")
+            except Exception as save_e:
+                self.logger.error(f"Не удалось сохранить базовое сообщение: {save_e}")
+            
+            return message_data
+            
         except Exception as e:
-            self.logger.error(f"Ошибка чтения файла сообщения {self.MESSAGE_DATA_FILE}: {e}")
+            self.logger.error(f"Общая ошибка чтения файла сообщения {self.MESSAGE_DATA_FILE}: {e}")
             return None
+            
         return message_data
 
     def _update_total_stats(self, sent_count):
